@@ -6,6 +6,7 @@ This system is designed to facilitate a bounty-driven task management platform w
 can post tasks with associated bounties. Tasks can either be assigned to specific individuals 
 by the Bounty Creator or left unassigned to operate on a first-come, first-serve basis. 
 The system ensures secure task resolution and bounty distribution.
+
 ------------------------
 #### List of Features:
 Web:
