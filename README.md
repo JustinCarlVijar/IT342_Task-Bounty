@@ -11,6 +11,7 @@ Web:
 - Login and Registration
 - Bounty Posting and Management
 - Threads
+
 Mobile:
 - Sound alerts and notifications
 
