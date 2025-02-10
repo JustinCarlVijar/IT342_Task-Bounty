@@ -1,14 +1,17 @@
-# IT342---Task-Bounty
+## IT342 Task-Bounty
 
 ### TEAM MEMBERS
 Justin Carl S. Vijar
 Patrick Romulo P. Cabiling
 Stephen Aizun D. Rosal
 
-#### Member 1
-**Name:** Justin Carl S. Vijar
-**Course & Year:** BSIT-4
+#### Member 3
+**Name:** Stephen Aizun D. Rosal
+**Course & Year:** BSIT-3
 
-My hobbies are programming, jogging and extreme tuslob buwa competitive eater.
-I also make discord bots using discord.py.
+> My hobbies include reading, playing games, and building model kits.
+>
+> My favorite genre to read is action and fantasy.
+>
+> 
 
