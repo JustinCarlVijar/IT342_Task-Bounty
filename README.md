@@ -16,10 +16,11 @@ Web:
 
 Mobile:
 - Sound alerts and notifications
-
+- 
 ------------------------
 #### Links:
-
+Figma:
+Diagrams:
 ------------------------
 #### Developer's Profile:
 
