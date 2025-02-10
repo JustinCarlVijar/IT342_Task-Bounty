@@ -1,6 +1,7 @@
 #### System Name: Task Bounty
 ------------------------
 #### System Description:
+
 This system is designed to facilitate a bounty-driven task management platform where users 
 can post tasks with associated bounties. Tasks can either be assigned to specific individuals 
 by the Bounty Creator or left unassigned to operate on a first-come, first-serve basis. 
