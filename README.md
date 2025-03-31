@@ -19,8 +19,7 @@ Mobile:
 - 
 ------------------------
 #### Links:
-Figma:
-Diagrams:
+Figma:https://www.figma.com/design/GgfZo2DweveDTXEiwzERpE/IT342-UI%2FUX-Prototype?node-id=0-1&t=wQcLtlcNZ58fAZU3-1
 ------------------------
 #### Developer's Profile:
 
