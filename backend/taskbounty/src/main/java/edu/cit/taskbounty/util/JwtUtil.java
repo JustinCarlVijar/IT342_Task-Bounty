@@ -14,17 +14,17 @@ import java.util.Date;
 public class JwtUtil {
 
     @Value("${jwt.secret}")
-    private String jwtSecret;  // Read from properties
+    private String jwtSecret;
 
     @Value("${jwt.expiration}")
-    private long jwtExpirationMs; // Read from properties
+    private long jwtExpirationMs;
 
     private SecretKey secretKey;
 
     @PostConstruct
     public void init() {
-        // Encode and generate secret key
-        secretKey = Keys.hmacShaKeyFor(Base64.getEncoder().encode(jwtSecret.getBytes()));
+        // Use the raw bytes directly — don't Base64 encode again
+        secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
     public String generateJwtToken(String username) {
@@ -37,6 +37,9 @@ public class JwtUtil {
     }
 
     public String getUserNameFromJwtToken(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
         return Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
@@ -47,6 +50,9 @@ public class JwtUtil {
 
     public boolean validateJwtToken(String authToken) {
         try {
+            if (authToken != null && authToken.startsWith("Bearer ")) {
+                authToken = authToken.substring(7);
+            }
             Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(authToken);
             return true;
         } catch (JwtException e) {
@@ -55,3 +61,4 @@ public class JwtUtil {
         return false;
     }
 }
+

@@ -42,10 +42,10 @@ public class AuthController {
 
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<?> verifyUser(@RequestParam("token") String token) {
-        String message = authService.verifyUser(token);
-        return ResponseEntity.ok(Map.of("status", "success", "message", message));
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam("code") Long code, @CookieValue(name = "jwt") String token) {
+        String username = jwtUtil.getUserNameFromJwtToken(token);
+        return authService.verifyUser(username, code);
     }
 
     @PostMapping("/login")
@@ -83,4 +83,29 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("status", "error", "message", e.getMessage()));
         }
     }
+
+    @PostMapping("/resend_code")
+    public ResponseEntity<String> resendVerificationCode(@CookieValue(name ="jwt") String authToken) {
+        try {
+            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            authService.resendVerificationCode(username);
+            return ResponseEntity.ok("Verification code resent successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/change_email")
+    public ResponseEntity<?> changeEmail(@RequestParam String newEmail,
+                                              @CookieValue(name = "jwt") String authToken) {
+        try {
+            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            authService.changeEmail(username, newEmail);
+            return ResponseEntity.ok("Email change requested. Please verify your new email.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
+
+
 }
