@@ -1,0 +1,28 @@
+/* Global body style */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Style for the green bar */
+.header {
+  background-color: #0D4715; /* Tailwind's green-400 color */
+  color: white;
+  padding: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: none; /* No border or shadow for the header */
+  border-bottom: none; /* No borders at the bottom */
+}
+
+/* Style for the form container with rounded corners and drop shadow */
+.form-container {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle drop shadow */
+  max-width: 400px;
+  width: 100%;
+}
