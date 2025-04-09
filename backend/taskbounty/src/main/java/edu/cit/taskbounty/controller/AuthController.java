@@ -2,73 +2,110 @@ package edu.cit.taskbounty.controller;
 
 import edu.cit.taskbounty.model.User;
 import edu.cit.taskbounty.service.AuthService;
+import edu.cit.taskbounty.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
+@RequestMapping("/auth")
 public class AuthController {
 
     @Autowired
     private AuthService authService;
 
-    // Register endpoint
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, String> request) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> register(@Valid @RequestBody User user) {
         try {
-            String username = request.get("username");
-            String email = request.get("email");
-            String password = request.get("password");
-            String country = request.get("country");
-
-            User newUser = authService.registerUser(username, email, password, country);
-
-            Map<String, Object> data = new HashMap<>();
-            data.put("userId", newUser.getId());
-            data.put("username", newUser.getUsername());
-            data.put("email", newUser.getEmail());
-            data.put("message", "User registered successfully");
-
-            response.put("status", "success");
-            response.put("data", data);
-            return ResponseEntity.ok(response);
+            User registeredUser = authService.register(user);
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                    "status", "success",
+                    "data", Map.of(
+                            "userId", registeredUser.getId(),
+                            "username", registeredUser.getUsername(),
+                            "email", registeredUser.getEmail(),
+                            "birthDate", registeredUser.getBirthDate(),
+                            "countryCode", registeredUser.getCountryCode(),
+                            "message", "User registered successfully. Please verify your email."
+                    )
+            ));
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", e.getMessage()));
         }
+
     }
 
-    // Login endpoint
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam("code") Long code, @CookieValue(name = "jwt") String token) {
+        String username = jwtUtil.getUserNameFromJwtToken(token);
+        return authService.verifyUser(username, code);
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> request) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
+        String identifier = credentials.get("identifier");
+        String password = credentials.get("password");
+
         try {
-            String email = request.get("email");
-            String password = request.get("password");
 
-            User user = authService.authenticateUser(email, password);
-            String token = authService.generateJwtToken(user);
+            Optional<User> userOpt = authService.login(identifier, password);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                String token = jwtUtil.generateJwtToken(user.getUsername());
 
-            Map<String, Object> data = new HashMap<>();
-            data.put("userId", user.getId());
-            data.put("username", user.getUsername());
-            data.put("token", token);
-            data.put("message", "Login successful");
+                ResponseCookie jwtCookie = ResponseCookie.from("jwt", token)
+                        .httpOnly(true)
+                        .secure(true)
+                        .path("/")
+                        .maxAge(24 * 60 * 60)
+                        .build();
 
-            response.put("status", "success");
-            response.put("data", data);
-            return ResponseEntity.ok(response);
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
+                        .body(Map.of(
+                                "status", "success",
+                                "data", Map.of(
+                                        "userId", user.getId(),
+                                        "username", user.getUsername(),
+                                        "message", "Login successful"
+                                )
+                        ));
+            }
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", "Invalid username/email or password"));
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-            // Returning 400 for invalid format or 401 for unauthorized can be handled separately if needed.
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", e.getMessage()));
         }
     }
+
+    @PostMapping("/resend_code")
+    public ResponseEntity<String> resendVerificationCode(@CookieValue(name ="jwt") String authToken) {
+        try {
+            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            authService.resendVerificationCode(username);
+            return ResponseEntity.ok("Verification code resent successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/change_email")
+    public ResponseEntity<?> changeEmail(@RequestParam String newEmail,
+                                              @CookieValue(name = "jwt") String authToken) {
+        try {
+            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            authService.changeEmail(username, newEmail);
+            return ResponseEntity.ok("Email change requested. Please verify your new email.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
+
+
 }
