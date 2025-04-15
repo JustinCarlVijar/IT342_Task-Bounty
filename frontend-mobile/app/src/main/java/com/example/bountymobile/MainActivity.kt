@@ -13,9 +13,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.bountymobile.ui.theme.BountyMobileTheme
 
 class MainActivity : ComponentActivity() {
@@ -49,7 +51,37 @@ fun NavigationGraph(navController: NavHostController, modifier: Modifier = Modif
             )
         }
         composable("login") {
-            LoginScreen()
+            LoginScreen(
+                onRegisterClick = { navController.navigate("register") },
+                onLoginSuccess = { navController.navigate("main") }
+            )
+        }
+        composable("register") {
+            RegisterScreen(
+                onBackClick = { navController.popBackStack() },
+                onRegisterSuccess = { username, jwtToken ->
+                    navController.navigate("verify?username=$username&jwtToken=$jwtToken") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(
+            "verify?username={username}&jwtToken={jwtToken}",
+            arguments = listOf(
+                navArgument("username") { defaultValue = "" },
+                navArgument("jwtToken") { defaultValue = "" }
+            )
+        ) { backStackEntry ->
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+            val jwtToken = backStackEntry.arguments?.getString("jwtToken") ?: ""
+            Verify(navController = navController, username = username, jwtToken = jwtToken)
+        }
+        composable("main") {
+            MainScreen(navController = navController)
+        }
+        composable("profile") {
+            Profile(navController = navController)
         }
     }
 }
@@ -65,7 +97,6 @@ fun WelcomeScreen(onEnterClick: () -> Unit, modifier: Modifier = Modifier) {
                 .fillMaxSize()
                 .padding(32.dp)
         ) {
-            // Title near top
             Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -93,7 +124,6 @@ fun WelcomeScreen(onEnterClick: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
 
-            // Button centered vertically
             Button(
                 onClick = onEnterClick,
                 modifier = Modifier
