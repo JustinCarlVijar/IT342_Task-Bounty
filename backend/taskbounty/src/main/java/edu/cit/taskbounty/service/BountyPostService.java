@@ -12,6 +12,7 @@ import edu.cit.taskbounty.model.User;
 import edu.cit.taskbounty.repository.BountyPostRepository;
 import edu.cit.taskbounty.repository.ProcessedDonationRepository;
 import edu.cit.taskbounty.repository.UserRepository;
+import edu.cit.taskbounty.util.JwtUtil;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,8 @@ public class BountyPostService {
     private UserRepository userRepository;
     @Autowired
     private ProcessedDonationRepository processedDonationRepository;
+    @Autowired
+    private JwtUtil jwtUtil;
 
     public BountyPostService(BountyPostRepository bountyPostRepository) {
         this.bountyPostRepository = bountyPostRepository;
@@ -270,5 +273,13 @@ public class BountyPostService {
             throw new RuntimeException("Failed to retrieve Stripe session", e);
         }
     }
+
+    public boolean upvote(String bountyPostId, String token){
+        BountyPost bountyPost = bountyPostRepository.findById(new ObjectId(bountyPostId))
+                .orElseThrow(() -> new RuntimeException("Bounty post not found"));
+        // TODO: Chamge Authorization verification in jwtfilter
+        return false;
+    }
+
 }
 

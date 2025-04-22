@@ -17,6 +17,10 @@ import org.apache.coyote.Response;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -55,6 +59,11 @@ public class SolutionService {
         this.bountyPostRepository = bountyPostRepository;
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+    }
+
+    public Page<Solution> getSolutionsByBountyPostId(String bountyPostId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return solutionRepository.findByBountyPostId(bountyPostId, pageable);
     }
 
     /**
@@ -196,8 +205,9 @@ public class SolutionService {
     /**
      * Update bank credentials for a user.
      */
-    public User updateBankCredentials(String userId, String stripeAccountId) {
-        User user = userRepository.findById(userId)
+    public User updateBankCredentials(String stripeAccountId, String token) {
+        String username = jwtUtil.getUserNameFromJwtToken(token);
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found."));
         user.setStripeAccountId(stripeAccountId);
         return userRepository.save(user);

@@ -82,7 +82,7 @@ public class StripeAccountController {
     /**
      * Delete the Stripe account ID for the authenticated user.
      */
-    @DeleteMapping("/delete")
+    @DeleteMapping()
     public ResponseEntity<Void> deleteStripeAccountId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
