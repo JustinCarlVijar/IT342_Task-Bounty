@@ -83,8 +83,7 @@ public class BountyPostService {
             throw new AuthenticationRequiredException("Authentication required to access draft posts");
         }
 
-        User user = getCurrentUserId().orElseThrow(() ->
-                new RuntimeException("User not found"));
+        User user = getCurrentUser();
 
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -97,8 +96,7 @@ public class BountyPostService {
             throw new AuthenticationRequiredException("Authentication required to access draft posts");
         }
 
-        User user = getCurrentUserId().orElseThrow(() ->
-                new RuntimeException("User not found"));
+        User user = getCurrentUser();
 
         return bountyPostRepository.findDraftByIdAndCreatorId(id, user.getId())
                 .orElseThrow(() -> new RuntimeException("Draft bounty post not found or you don't have permission to access it"));
@@ -118,9 +116,7 @@ public class BountyPostService {
             throw new AuthenticationRequiredException("Authentication required to access non-public post");
         }
 
-        User currentUser = getCurrentUserId()
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+        User currentUser = getCurrentUser();
         if (!currentUser.getId().equals(post.getCreatorId())) {
             throw new RuntimeException("You don't have permission to access this post");
         }
@@ -132,7 +128,7 @@ public class BountyPostService {
         if (!isUserAuthenticated()) {
             throw new AuthenticationRequiredException("Authentication required to vote");
         }
-        Optional<User> userId = getCurrentUserId();
+        User user = getCurrentUser();
         BountyPost post = bountyPostRepository.findById(new ObjectId(bountyPostId))
                 .orElseThrow(() -> new RuntimeException("Bounty post not found"));
 
@@ -144,29 +140,29 @@ public class BountyPostService {
         }
 
         if (isUpvote) {
-            if (post.getVotedUp().contains(userId)) {
-                logger.info("User {} already upvoted post {}", userId, bountyPostId);
+            if (post.getVotedUp().contains(user.getId())) {
+                logger.info("User {} already upvoted post {}", user.getUsername(), bountyPostId);
                 return false;
             }
-            if (post.getVotedDown().contains(userId)) {
-                post.getVotedDown().remove(userId);
+            if (post.getVotedDown().contains(user.getId())) {
+                post.getVotedDown().remove(user.getId());
                 post.setDownvotes(post.getDownvotes() - 1);
             }
-            post.getVotedUp().add(String.valueOf(userId));
+            post.getVotedUp().add(user.getId());
             post.setUpvotes(post.getUpvotes() + 1);
-            logger.info("User {} upvoted post {}", userId, bountyPostId);
+            logger.info("User {} upvoted post {}", user.getId(), bountyPostId);
         } else {
-            if (post.getVotedDown().contains(userId)) {
-                logger.info("User {} already downvoted post {}", userId, bountyPostId);
+            if (post.getVotedDown().contains(user.getId())) {
+                logger.info("User {} already downvoted post {}", user.getId(), bountyPostId);
                 return false;
             }
-            if (post.getVotedUp().contains(userId)) {
-                post.getVotedUp().remove(userId);
+            if (post.getVotedUp().contains(user.getId())) {
+                post.getVotedUp().remove(user.getId());
                 post.setUpvotes(post.getUpvotes() - 1);
             }
-            post.getVotedDown().add(String.valueOf(userId));
+            post.getVotedDown().add(String.valueOf(user.getId()));
             post.setDownvotes(post.getDownvotes() + 1);
-            logger.info("User {} downvoted post {}", userId, bountyPostId);
+            logger.info("User {} downvoted post {}", user.getId(), bountyPostId);
         }
 
         bountyPostRepository.save(post);
@@ -179,7 +175,7 @@ public class BountyPostService {
     }
 
 
-    private Optional<User> getCurrentUserId() {
+    private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         return userRepository.findByUsername(username);
@@ -192,8 +188,7 @@ public class BountyPostService {
         }
 
         String username = auth.getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found in repository"));
+        User user = userRepository.findByUsername(username);
 
         BountyPost bountyPost = new BountyPost();
         bountyPost.setTitle(bountyPostRequest.getTitle());
@@ -352,8 +347,7 @@ public class BountyPostService {
             throw new AuthenticationRequiredException("Authentication required to delete a bounty post");
         }
 
-        User user = getCurrentUserId().orElseThrow(() ->
-                new RuntimeException("User not found"));
+        User user = getCurrentUser();
 
         BountyPost post = bountyPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Bounty post not found"));

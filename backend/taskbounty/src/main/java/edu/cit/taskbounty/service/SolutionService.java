@@ -207,8 +207,7 @@ public class SolutionService {
      */
     public User updateBankCredentials(String stripeAccountId, String token) {
         String username = jwtUtil.getUserNameFromJwtToken(token);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+        User user = userRepository.findByUsername(username);
         user.setStripeAccountId(stripeAccountId);
         return userRepository.save(user);
     }

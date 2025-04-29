@@ -60,7 +60,7 @@ public class AuthService {
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+        if (userRepository.findByUsername(user.getUsername()) != null) {
             throw new RuntimeException("Username already exists");
         }
         int verificationCode = generateVerificationCode();
@@ -85,8 +85,7 @@ public class AuthService {
      * @return Success message.
      */
     public ResponseEntity<?> verifyUser(String username, Long code) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("No user found"));
+        User user = userRepository.findByUsername(username);
         if (user.isVerified()) {
             return new ResponseEntity<>(HttpStatus.IM_USED);
         }
@@ -122,8 +121,7 @@ public class AuthService {
     }
 
     public void resendVerificationCode(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsername(username);
 
         long currentTimestamp = System.currentTimeMillis();
         long timeSinceLastSent = (currentTimestamp - user.getLastCodeSentTimestamp()) / 1000; // in seconds
@@ -153,8 +151,7 @@ public class AuthService {
     }
 
     public boolean changeEmail(String username, String newEmail) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsername(username);
 
         // Same cooldown logic as resend
         long currentTimestamp = System.currentTimeMillis();

@@ -45,7 +45,7 @@ public class StripeAccountController {
         }
 
         String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
+        Optional<User> userOpt = Optional.ofNullable(userRepository.findByUsername(username));
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (user.getStripeAccountId() != null) {
@@ -69,7 +69,7 @@ public class StripeAccountController {
         }
 
         String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
+        Optional<User> userOpt = Optional.ofNullable(userRepository.findByUsername(username));
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             user.setStripeAccountId(stripeAccountId);
@@ -89,7 +89,7 @@ public class StripeAccountController {
         }
 
         String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
+        Optional<User> userOpt = Optional.ofNullable(userRepository.findByUsername(username));
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             user.setStripeAccountId(null);

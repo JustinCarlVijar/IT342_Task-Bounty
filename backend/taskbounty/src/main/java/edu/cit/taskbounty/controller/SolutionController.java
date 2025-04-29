@@ -75,7 +75,7 @@ public class SolutionController {
             @RequestParam(defaultValue = "10") int size,
             @CookieValue(name = "jwt") String token){
         String username = jwtUtil.getUserNameFromJwtToken(token);
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsername(username);
         BountyPost bountyPost = bountyPostRepository.findById(new ObjectId(id))
                 .orElseThrow(() -> new RuntimeException("Bounty Post not found"));
 

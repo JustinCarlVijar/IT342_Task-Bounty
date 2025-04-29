@@ -24,7 +24,6 @@ public class CommentService {
     /**
      * Create a new comment or reply (authenticated users only).
      */
-    @PreAuthorize("isAuthenticated()")
     public Comment createComment(ObjectId bountyPostId, ObjectId parentCommentId, ObjectId authorId, String content) {
         BountyPost post = bountyPostRepository.findById(bountyPostId)
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
