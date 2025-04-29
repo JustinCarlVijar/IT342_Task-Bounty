@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document(collection = "bounty_posts")
 public class BountyPost {
@@ -21,6 +23,8 @@ public class BountyPost {
     private boolean isPublic; // True after payment is confirmed
     private int upvotes;
     private int downvotes;
+    private List<String> votedUp; // List of user IDs who upvoted
+    private List<String> votedDown; // List of user IDs who downvoted
     private int commentCount; // Total number of comments and replies
     @CreatedDate
     private Instant createdAt;
@@ -28,7 +32,10 @@ public class BountyPost {
     private Instant updatedAt;
 
     // Default constructor
-    public BountyPost() {}
+    public BountyPost() {
+        this.votedUp = new ArrayList<>();
+        this.votedDown = new ArrayList<>();
+    }
 
     // Parameterized constructor
     public BountyPost(String creatorId, String title, String description, BigDecimal bountyPrice, boolean isPublic) {
@@ -39,6 +46,8 @@ public class BountyPost {
         this.isPublic = isPublic;
         this.upvotes = 0;
         this.downvotes = 0;
+        this.votedUp = new ArrayList<>();
+        this.votedDown = new ArrayList<>();
         this.commentCount = 0;
     }
 
@@ -59,6 +68,10 @@ public class BountyPost {
     public void setUpvotes(int upvotes) { this.upvotes = upvotes; }
     public int getDownvotes() { return downvotes; }
     public void setDownvotes(int downvotes) { this.downvotes = downvotes; }
+    public List<String> getVotedUp() { return votedUp; }
+    public void setVotedUp(List<String> votedUp) { this.votedUp = votedUp; }
+    public List<String> getVotedDown() { return votedDown; }
+    public void setVotedDown(List<String> votedDown) { this.votedDown = votedDown; }
     public int getCommentCount() { return commentCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
     public Instant getCreatedAt() { return createdAt; }
@@ -69,5 +82,4 @@ public class BountyPost {
     public void topUpBounty(BigDecimal amount) {
         this.bountyPrice = this.bountyPrice.add(amount);
     }
-
 }

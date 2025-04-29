@@ -89,12 +89,13 @@
 			<artifactId>spring-boot-starter-data-mongodb</artifactId>
 			<version>3.4.2</version>
 		</dependency>
+		<!--Comment com.google.cloud if running locally -->
 		<!-- https://mvnrepository.com/artifact/com.google.cloud/spring-cloud-gcp-starter -->
-<!--		<dependency>-->
-<!--			<groupId>com.google.cloud</groupId>-->
-<!--			<artifactId>spring-cloud-gcp-starter</artifactId>-->
-<!--			<version>6.1.1</version>-->
-<!--		</dependency>-->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>spring-cloud-gcp-starter</artifactId>
+			<version>6.1.1</version>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>
 			<groupId>org.slf4j</groupId>

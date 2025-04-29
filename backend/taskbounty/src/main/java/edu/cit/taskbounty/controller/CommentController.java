@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/bounty_post/{postId}/comments")
+@RequestMapping("/comment")
 public class CommentController {
 
     @Autowired

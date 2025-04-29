@@ -14,6 +14,8 @@ import edu.cit.taskbounty.repository.ProcessedDonationRepository;
 import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.util.JwtUtil;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -26,14 +28,21 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Service
 public class BountyPostService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BountyPostService.class);
 
     private final BountyPostRepository bountyPostRepository;
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
+
+    @Value("${stripe.url}")
+    private String url;
+
 
     @Autowired
     private UserRepository userRepository;
@@ -46,36 +55,122 @@ public class BountyPostService {
         this.bountyPostRepository = bountyPostRepository;
     }
 
-    public Page<BountyPost> getBountyPosts(int page, int size, String scope, String sortBy, String search) {
-        // Enforce maximum size
+    public Page<BountyPost> getBountyPosts(int page, int size, String sortBy, String search) {
         size = Math.min(size, 25);
+        Sort sort;
 
-        // Define sorting
-        Sort sort = switch (sortBy.toLowerCase()) {
-            case "most_upvoted" -> Sort.by(Sort.Direction.DESC, "upvotes");
-            case "most_downvoted" -> Sort.by(Sort.Direction.DESC, "downvotes");
+        // Determine sort order based on sortBy parameter
+        sort = switch (sortBy.toLowerCase()) {
             case "oldest" -> Sort.by(Sort.Direction.ASC, "createdAt");
             case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
-            default -> Sort.by(Sort.Direction.DESC, "upvotes"); // Default: most_upvoted
+            default -> Sort.by(Sort.Direction.DESC, "upvotes");
         };
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        if ("mine".equalsIgnoreCase(scope)) {
-            if (!isUserAuthenticated()) {
-                throw new AuthenticationRequiredException("Authentication required for 'My Bounty Posts'");
-            }
-            String creatorId = String.valueOf(getCurrentUserId());
-            if (search != null && !search.trim().isEmpty()) {
-                return bountyPostRepository.searchMyBountyPosts(creatorId, search, pageable);
-            }
-            return bountyPostRepository.findByCreatorId(creatorId, pageable);
-        } else { // scope = "all" or invalid
-            if (search != null && !search.trim().isEmpty()) {
-                return bountyPostRepository.searchBountyPosts(search, pageable);
-            }
-            return bountyPostRepository.findByIsPublicTrue(pageable);
+        // Only show public posts (not filtering by creator anymore)
+        if (search != null && !search.trim().isEmpty()) {
+            // Use only public posts in search
+            return bountyPostRepository.searchPublicBountyPosts(search, pageable);
         }
+
+        // Return only public posts
+        return bountyPostRepository.findAllPublic(pageable);
+    }
+
+    public Page<BountyPost> getDraftBountyPosts(int page, int size) {
+        if (!isUserAuthenticated()) {
+            throw new AuthenticationRequiredException("Authentication required to access draft posts");
+        }
+
+        User user = getCurrentUserId().orElseThrow(() ->
+                new RuntimeException("User not found"));
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return bountyPostRepository.findDraftsByCreatorId(user.getId(), pageable);
+    }
+
+    public BountyPost getDraftBountyPost(ObjectId id) {
+        if (!isUserAuthenticated()) {
+            throw new AuthenticationRequiredException("Authentication required to access draft posts");
+        }
+
+        User user = getCurrentUserId().orElseThrow(() ->
+                new RuntimeException("User not found"));
+
+        return bountyPostRepository.findDraftByIdAndCreatorId(id, user.getId())
+                .orElseThrow(() -> new RuntimeException("Draft bounty post not found or you don't have permission to access it"));
+    }
+
+    public BountyPost getBountyPostById(ObjectId id) {
+        BountyPost post = bountyPostRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Bounty post not found"));
+
+        // If post is public, return it
+        if (post.isPublic()) {
+            return post;
+        }
+
+        // If post is not public, check if the current user is the creator
+        if (!isUserAuthenticated()) {
+            throw new AuthenticationRequiredException("Authentication required to access non-public post");
+        }
+
+        User currentUser = getCurrentUserId()
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!currentUser.getId().equals(post.getCreatorId())) {
+            throw new RuntimeException("You don't have permission to access this post");
+        }
+
+        return post;
+    }
+
+    public boolean vote(String bountyPostId, String voteType) {
+        if (!isUserAuthenticated()) {
+            throw new AuthenticationRequiredException("Authentication required to vote");
+        }
+        Optional<User> userId = getCurrentUserId();
+        BountyPost post = bountyPostRepository.findById(new ObjectId(bountyPostId))
+                .orElseThrow(() -> new RuntimeException("Bounty post not found"));
+
+        boolean isUpvote = "upvote".equalsIgnoreCase(voteType);
+        boolean isDownvote = "downvote".equalsIgnoreCase(voteType);
+
+        if (!isUpvote && !isDownvote) {
+            throw new IllegalArgumentException("Invalid vote type: " + voteType);
+        }
+
+        if (isUpvote) {
+            if (post.getVotedUp().contains(userId)) {
+                logger.info("User {} already upvoted post {}", userId, bountyPostId);
+                return false;
+            }
+            if (post.getVotedDown().contains(userId)) {
+                post.getVotedDown().remove(userId);
+                post.setDownvotes(post.getDownvotes() - 1);
+            }
+            post.getVotedUp().add(String.valueOf(userId));
+            post.setUpvotes(post.getUpvotes() + 1);
+            logger.info("User {} upvoted post {}", userId, bountyPostId);
+        } else {
+            if (post.getVotedDown().contains(userId)) {
+                logger.info("User {} already downvoted post {}", userId, bountyPostId);
+                return false;
+            }
+            if (post.getVotedUp().contains(userId)) {
+                post.getVotedUp().remove(userId);
+                post.setUpvotes(post.getUpvotes() - 1);
+            }
+            post.getVotedDown().add(String.valueOf(userId));
+            post.setDownvotes(post.getDownvotes() + 1);
+            logger.info("User {} downvoted post {}", userId, bountyPostId);
+        }
+
+        bountyPostRepository.save(post);
+        return true;
     }
 
     private boolean isUserAuthenticated() {
@@ -83,19 +178,13 @@ public class BountyPostService {
         return auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);
     }
 
-    private ObjectId getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            throw new RuntimeException("User must be authenticated to create a bounty post");
-        }
-        // Assuming your UserDetails implementation has an ObjectId ID
-        // Adjust this based on your actual User class
-        return new ObjectId(auth.getName()); // Example: assumes ID is in 'name' field
+
+    private Optional<User> getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        return userRepository.findByUsername(username);
     }
 
-    /**
-     * Create a new bounty post with isPublic set to false.
-     */
     public BountyPost createBountyPost(BountyPostRequest bountyPostRequest) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
@@ -116,10 +205,6 @@ public class BountyPostService {
         return bountyPostRepository.save(bountyPost);
     }
 
-    /**
-     * Create a Stripe Checkout Session for payment.
-     */
-
     public String createPaymentSession(ObjectId bountyPostId) {
         BountyPost post = bountyPostRepository.findById(bountyPostId)
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
@@ -132,15 +217,15 @@ public class BountyPostService {
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl("http://localhost:8080/bounty_post/" + bountyPostId + "/payment-success?session_id={CHECKOUT_SESSION_ID}")
-                .setCancelUrl("http://localhost:8080/bounty_post/" + bountyPostId + "/payment-cancel")
+                .setSuccessUrl(url + "/" + bountyPostId + "/payment-success?session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(url + "/" + bountyPostId + "/payment-cancel")
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
                                 .setQuantity(1L)
                                 .setPriceData(
                                         SessionCreateParams.LineItem.PriceData.builder()
                                                 .setCurrency("php")
-                                                .setUnitAmount(post.getBountyPrice().multiply(new BigDecimal("100")).longValue()) // Convert to cents
+                                                .setUnitAmount(post.getBountyPrice().multiply(new BigDecimal("100")).longValue())
                                                 .setProductData(
                                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                                 .setName("Bounty Post: " + post.getTitle())
@@ -157,7 +242,7 @@ public class BountyPostService {
             Session session = Session.create(params);
             return session.getUrl();
         } catch (StripeException e) {
-            System.out.println(e.getMessage());
+            logger.error("Failed to create Stripe session for post {}: {}", bountyPostId, e.getMessage());
             throw new RuntimeException("Failed to create Stripe session", e);
         }
     }
@@ -170,15 +255,12 @@ public class BountyPostService {
         bountyPostRepository.save(post);
     }
 
-
     public void handleSuccessfulDonation(String sessionId) {
         try {
-            // Check if this session ID was already processed
             if (processedDonationRepository.existsBySessionId(sessionId)) {
                 throw new RuntimeException("This donation has already been processed.");
             }
 
-            // Retrieve the session from Stripe
             Session session = Session.retrieve(sessionId);
 
             if (!"complete".equals(session.getStatus())) {
@@ -189,48 +271,38 @@ public class BountyPostService {
             PaymentIntent paymentIntent = PaymentIntent.retrieve(session.getPaymentIntent());
             BigDecimal donationAmount = BigDecimal.valueOf(paymentIntent.getAmount()).divide(new BigDecimal("100"));
 
-            // Find the bounty post
             BountyPost post = bountyPostRepository.findById(new ObjectId(bountyPostId))
                     .orElseThrow(() -> new RuntimeException("BountyPost not found"));
 
-            // Increase bounty price
             post.topUpBounty(donationAmount);
             bountyPostRepository.save(post);
 
-            // **Mark session as processed**
             processedDonationRepository.save(new ProcessedDonation(sessionId));
-
         } catch (StripeException e) {
+            logger.error("Failed to process donation for session {}: {}", sessionId, e.getMessage());
             throw new RuntimeException("Failed to retrieve Stripe session", e);
         }
     }
 
-
-    /**
-     * Create a Stripe Checkout session for donating to a bounty post.
-     * @param bountyPostId The ID of the bounty post.
-     * @param amount The amount to donate.
-     * @return The checkout URL.
-     */
     public String createDonationSession(ObjectId bountyPostId, BigDecimal amount) {
         BountyPost post = bountyPostRepository.findById(bountyPostId)
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
 
         Stripe.apiKey = stripeApiKey;
 
-        // Stripe requires amounts in cents (smallest currency unit)
         long amountInCents = amount.multiply(new BigDecimal("100")).longValue();
+
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl("http://localhost:8080/bounty_post/" + bountyPostId + "/donation-success?session_id={CHECKOUT_SESSION_ID}")
-                .setCancelUrl("http://localhost:8080/bounty_post/" + bountyPostId + "/donation-cancel")
+                .setSuccessUrl(url + "/" + bountyPostId + "/payment-success?session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(url + "/" + bountyPostId + "/payment-cancel")
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
                                 .setQuantity(1L)
                                 .setPriceData(
                                         SessionCreateParams.LineItem.PriceData.builder()
-                                                .setCurrency("php")  // Change to your currency
+                                                .setCurrency("php")
                                                 .setUnitAmount(amountInCents)
                                                 .setProductData(
                                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
@@ -247,15 +319,13 @@ public class BountyPostService {
 
         try {
             Session session = Session.create(params);
-            return session.getUrl(); // Return the Stripe checkout page URL
+            return session.getUrl();
         } catch (StripeException e) {
+            logger.error("Failed to create donation session for post {}: {}", bountyPostId, e.getMessage());
             throw new RuntimeException("Failed to create Stripe session", e);
         }
     }
 
-    /**
-     * Confirm payment and make the post public.
-     */
     public boolean confirmPayment(ObjectId bountyPostId, String sessionId) {
         Stripe.apiKey = stripeApiKey;
 
@@ -266,20 +336,36 @@ public class BountyPostService {
                         .orElseThrow(() -> new RuntimeException("BountyPost not found"));
                 post.setPublic(true);
                 bountyPostRepository.save(post);
+                logger.info("Payment confirmed for post {}, set to public", bountyPostId);
                 return true;
             }
+            logger.warn("Payment confirmation failed for post {}, session {}", bountyPostId, sessionId);
             return false;
         } catch (StripeException e) {
+            logger.error("Failed to confirm payment for post {}: {}", bountyPostId, e.getMessage());
             throw new RuntimeException("Failed to retrieve Stripe session", e);
         }
     }
 
-    public boolean upvote(String bountyPostId, String token){
-        BountyPost bountyPost = bountyPostRepository.findById(new ObjectId(bountyPostId))
+    public boolean deleteBountyPost(ObjectId id) {
+        if (!isUserAuthenticated()) {
+            throw new AuthenticationRequiredException("Authentication required to delete a bounty post");
+        }
+
+        User user = getCurrentUserId().orElseThrow(() ->
+                new RuntimeException("User not found"));
+
+        BountyPost post = bountyPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Bounty post not found"));
-        // TODO: Chamge Authorization verification in jwtfilter
-        return false;
+
+        // Check if the user owns the post
+        if (!post.getCreatorId().equals(user.getId())) {
+            throw new RuntimeException("You don't have permission to delete this bounty post");
+        }
+
+        // Delete the post
+        bountyPostRepository.delete(post);
+        logger.info("User {} deleted bounty post {}", user.getId(), id);
+        return true;
     }
-
 }
-
