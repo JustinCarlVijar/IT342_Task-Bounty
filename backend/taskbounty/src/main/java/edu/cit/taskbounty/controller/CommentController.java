@@ -124,12 +124,12 @@ public class CommentController {
  * DTO for comment creation/update requests.
  */
 class CommentRequest {
-    private ObjectId parentCommentId;
+    private String parentCommentId;
     private String content;
 
     // Getters and Setters
-    public ObjectId getParentCommentId() { return parentCommentId; }
-    public void setParentCommentId(ObjectId parentCommentId) { this.parentCommentId = parentCommentId; }
+    public ObjectId getParentCommentId() { return new ObjectId(parentCommentId); }
+    public void setParentCommentId(ObjectId parentCommentId) { this.parentCommentId = String.valueOf(parentCommentId); }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 }

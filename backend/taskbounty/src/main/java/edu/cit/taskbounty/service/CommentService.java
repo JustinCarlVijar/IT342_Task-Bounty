@@ -32,9 +32,8 @@ public class CommentService {
             throw new RuntimeException("Cannot comment on a non-public BountyPost");
         }
 
-        if (parentCommentId != null) {
-            commentRepository.findById(parentCommentId)
-                    .orElseThrow(() -> new RuntimeException("Parent comment not found"));
+        if (parentCommentId == null) {
+            parentCommentId = new ObjectId();
         }
 
         Comment comment = new Comment(bountyPostId, parentCommentId, authorId, content);
