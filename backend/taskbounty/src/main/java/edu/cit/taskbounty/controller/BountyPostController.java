@@ -35,68 +35,26 @@ public class BountyPostController {
             return ResponseEntity.badRequest().body("Bounty price must be greater than zero.");
         }
 
-        BountyPost createdPost = bountyPostService.createBountyPost(bountyPostRequest);
-        return new ResponseEntity<>(createdPost, HttpStatus.CREATED);
+        return bountyPostService.createBountyPost(bountyPostRequest);
     }
 
-    // New endpoint to get all draft bounty posts for the current user
     @GetMapping("/draft")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<BountyPost>> getDraftBountyPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        try {
-            Page<BountyPost> draftPosts = bountyPostService.getDraftBountyPosts(page, size);
-            return new ResponseEntity<>(draftPosts, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        Page<BountyPost> draftPosts = bountyPostService.getDraftBountyPosts(page, size);
+        return new ResponseEntity<>(draftPosts, HttpStatus.OK);
     }
 
-    // New endpoint to get a specific draft bounty post by ID
     @GetMapping("/{id}/draft")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getDraftBountyPost(@PathVariable ObjectId id) {
-        try {
-            BountyPost draftPost = bountyPostService.getDraftBountyPost(id);
-            return new ResponseEntity<>(draftPost, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        ResponseEntity<BountyPost> response = bountyPostService.getDraftBountyPost(id);
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return ResponseEntity.ok(response.getBody());
         }
-    }
-
-    @GetMapping("/{id}/payment-session")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<String> createPaymentSession(@PathVariable ObjectId id) {
-        String checkoutUrl = bountyPostService.createPaymentSession(id);
-        return ResponseEntity.ok(checkoutUrl);
-    }
-
-    @PostMapping("/{id}/donate")
-    public ResponseEntity<String> donateToBounty(@PathVariable ObjectId id, @RequestParam("amount") BigDecimal amount) {
-        String checkoutUrl = bountyPostService.createDonationSession(id, amount);
-        return ResponseEntity.ok(checkoutUrl);
-    }
-
-    @GetMapping("/{id}/payment-success")
-    public ResponseEntity<String> paymentSuccess(@PathVariable ObjectId id, @RequestParam("session_id") String sessionId) {
-        boolean success = bountyPostService.confirmPayment(id, sessionId);
-        if (success) {
-            return new ResponseEntity<>("Payment successful, post is now public", HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Payment failed or session invalid", HttpStatus.BAD_REQUEST);
-    }
-
-    @PostMapping("/{id}/donation-success")
-    public ResponseEntity<String> confirmDonation(@RequestParam("session_id") String sessionId) {
-        try {
-            bountyPostService.handleSuccessfulDonation(sessionId);
-            return ResponseEntity.ok("Donation successful! Bounty price updated.");
-        } catch (Exception e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
+        return ResponseEntity.status(response.getStatusCode()).body("Draft bounty post not found or you don't have permission to access it");
     }
 
     @GetMapping
@@ -105,21 +63,17 @@ public class BountyPostController {
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "most_upvoted") String sortBy,
             @RequestParam(required = false) String search) {
-        // Valid sortBy values: "oldest", "newest", "most_upvoted" (default)
         Page<BountyPost> posts = bountyPostService.getBountyPosts(page, size, sortBy, search);
         return new ResponseEntity<>(posts, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getBountyPost(@PathVariable ObjectId id) {
-        try {
-            BountyPost post = bountyPostService.getBountyPostById(id);
-            return new ResponseEntity<>(post, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        ResponseEntity<BountyPost> response = bountyPostService.getBountyPostById(id);
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return ResponseEntity.ok(response.getBody());
         }
+        return ResponseEntity.status(response.getStatusCode()).body("Bounty post not found or you don't have permission to access it");
     }
 
     @PostMapping("/{id}/vote")
@@ -134,5 +88,15 @@ public class BountyPostController {
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>("Invalid vote type: " + voteType, HttpStatus.BAD_REQUEST);
         }
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> deleteBountyPost(@PathVariable ObjectId id) {
+        ResponseEntity<Void> response = bountyPostService.deleteBountyPost(id);
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return ResponseEntity.ok("Bounty post deleted successfully");
+        }
+        return ResponseEntity.status(response.getStatusCode()).body("Bounty post not found or you don't have permission to delete it");
     }
 }

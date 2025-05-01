@@ -1,10 +1,16 @@
 package edu.cit.taskbounty.controller;
 
+import edu.cit.taskbounty.dto.UserUpdateDTO;
 import edu.cit.taskbounty.model.User;
+import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.service.AuthService;
 import edu.cit.taskbounty.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -20,6 +26,12 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody User user) {
@@ -39,12 +51,12 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("status", "error", "message", e.getMessage()));
         }
-
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyUser(@RequestParam("code") Long code, @CookieValue(name = "jwt") String token) {
-        String username = jwtUtil.getUserNameFromJwtToken(token);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> verifyUser(@RequestParam("code") Long code) {
+        String username = getAuthenticatedUsername();
         return authService.verifyUser(username, code);
     }
 
@@ -54,7 +66,6 @@ public class AuthController {
         String password = credentials.get("password");
 
         try {
-
             Optional<User> userOpt = authService.login(identifier, password);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
@@ -85,9 +96,10 @@ public class AuthController {
     }
 
     @PostMapping("/resend_code")
-    public ResponseEntity<String> resendVerificationCode(@CookieValue(name ="jwt") String authToken) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> resendVerificationCode() {
         try {
-            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            String username = getAuthenticatedUsername();
             authService.resendVerificationCode(username);
             return ResponseEntity.ok("Verification code resent successfully.");
         } catch (RuntimeException e) {
@@ -96,10 +108,10 @@ public class AuthController {
     }
 
     @PostMapping("/change_email")
-    public ResponseEntity<?> changeEmail(@RequestParam String newEmail,
-                                              @CookieValue(name = "jwt") String authToken) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> changeEmail(@RequestParam String newEmail) {
         try {
-            String username = jwtUtil.getUserNameFromJwtToken(authToken);
+            String username = getAuthenticatedUsername();
             authService.changeEmail(username, newEmail);
             return ResponseEntity.ok("Email change requested. Please verify your new email.");
         } catch (RuntimeException e) {
@@ -107,5 +119,131 @@ public class AuthController {
         }
     }
 
+    @PatchMapping("/update")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UserUpdateDTO updateDTO) {
+        try {
+            // Validate that at least one field is provided
+            if (!updateDTO.hasAtLeastOneField()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("status", "error", "message", "At least one field must be provided"));
+            }
 
+            String username = getAuthenticatedUsername();
+            User user = userRepository.findByUsername(username);
+
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("status", "error", "message", "User not found"));
+            }
+
+            // Update fields if provided
+            if (updateDTO.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(updateDTO.getPassword()));
+            }
+
+            if (updateDTO.getUsername() != null) {
+                if (userRepository.findByUsername(updateDTO.getUsername()) != null &&
+                        !updateDTO.getUsername().equals(username)) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(Map.of("status", "error", "message", "Username already exists"));
+                }
+                user.setUsername(updateDTO.getUsername());
+            }
+
+            if (updateDTO.getCountryCode() != null) {
+                user.setCountryCode(updateDTO.getCountryCode());
+            }
+
+            if (updateDTO.getBirthDate() != null) {
+                user.setBirthDate(updateDTO.getBirthDate());
+            }
+
+            userRepository.save(user);
+
+            return ResponseEntity.ok()
+                    .body(Map.of(
+                            "status", "success",
+                            "data", Map.of(
+                                    "userId", user.getId(),
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "birthDate", user.getBirthDate(),
+                                    "countryCode", user.getCountryCode(),
+                                    "message", "Profile updated successfully"
+                            )
+                    ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getCurrentUserProfile() {
+        try {
+            String username = getAuthenticatedUsername();
+            User user = userRepository.findByUsername(username);
+
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("status", "error", "message", "User not found"));
+            }
+
+            return ResponseEntity.ok()
+                    .body(Map.of(
+                            "status", "success",
+                            "data", Map.of(
+                                    "userId", user.getId(),
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "birthDate", user.getBirthDate(),
+                                    "countryCode", user.getCountryCode(),
+                                    "verified", user.isVerified(),
+                                    "dateCreated", user.getDateCreated()
+                            )
+                    ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/profile/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getUserProfileById(@PathVariable String userId) {
+        try {
+            Optional<User> userOpt = userRepository.findById(userId);
+
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("status", "error", "message", "User not found"));
+            }
+
+            User user = userOpt.get();
+            return ResponseEntity.ok()
+                    .body(Map.of(
+                            "status", "success",
+                            "data", Map.of(
+                                    "userId", user.getId(),
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "birthDate", user.getBirthDate(),
+                                    "countryCode", user.getCountryCode(),
+                                    "verified", user.isVerified(),
+                                    "dateCreated", user.getDateCreated()
+                            )
+                    ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    private String getAuthenticatedUsername() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userDetails.getUsername();
+    }
 }

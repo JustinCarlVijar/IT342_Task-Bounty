@@ -2,8 +2,10 @@ package edu.cit.taskbounty.controller;
 
 import edu.cit.taskbounty.model.Comment;
 import edu.cit.taskbounty.model.User;
+import edu.cit.taskbounty.repository.BountyPostRepository;
 import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.service.CommentService;
+import edu.cit.taskbounty.dto.CommentRequest;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/bounty_post/{postId}/comment")
+@RequestMapping("/comment")
 public class CommentController {
 
     @Autowired
@@ -26,28 +28,31 @@ public class CommentController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private BountyPostRepository bountyPostRepository;
+
     /**
      * Create a new comment or reply.
      * Gets the authenticated user from security context instead of request body.
      */
-    @PostMapping
+    @PostMapping("/{postId}/bounty_post")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Comment> createComment(
-            @PathVariable("postId") ObjectId postId,
+            @PathVariable("postId") String postId,
             @RequestBody CommentRequest commentRequest) {
-        // Get authenticated username from security context
+        // Validate postId
+        if (!ObjectId.isValid(postId)) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
-
-        // Find the user by username
         User user = userRepository.findByUsername(username);
         if (user == null) {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
 
-        // Convert user ID to ObjectId
-        ObjectId authorId = new ObjectId(user.getId());
-
+        String authorId = user.getId();
         Comment comment = commentService.createComment(
                 postId,
                 commentRequest.getParentCommentId(),
@@ -60,8 +65,9 @@ public class CommentController {
     /**
      * Get all comments for a BountyPost.
      */
-    @GetMapping
-    public ResponseEntity<List<Comment>> getCommentsByBountyPostId(@PathVariable("postId") ObjectId postId) {
+    @GetMapping("/{postId}/bounty_post")
+    public ResponseEntity<List<Comment>> getCommentsByBountyPostId(
+            @PathVariable("postId") String postId) {
         List<Comment> comments = commentService.getCommentsByBountyPostId(postId);
         return new ResponseEntity<>(comments, HttpStatus.OK);
     }
@@ -71,8 +77,7 @@ public class CommentController {
      */
     @GetMapping("/{commentId}")
     public ResponseEntity<Comment> getCommentById(
-            @PathVariable("postId") ObjectId postId,
-            @PathVariable("commentId") ObjectId commentId) {
+            @PathVariable("commentId") String commentId) {
         Optional<Comment> comment = commentService.getCommentById(commentId);
         return comment.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
@@ -80,56 +85,74 @@ public class CommentController {
 
     /**
      * Update a comment.
-     * Uses authenticated user ID for permission check.
+     * Ensures only the author can update their comment.
      */
     @PutMapping("/{commentId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Comment> updateComment(
-            @PathVariable("postId") ObjectId postId,
-            @PathVariable("commentId") ObjectId commentId,
+            @PathVariable("commentId") String commentId,
             @RequestBody CommentRequest commentRequest) {
-        // Get authenticated username from security context
+        // Get authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
-
-        // Find the user by username
         User user = userRepository.findByUsername(username);
         if (user == null) {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
+        String userId = user.getId();
 
-        // Convert user ID to ObjectId
-        ObjectId authorId = new ObjectId(user.getId());
+        // Fetch the existing comment
+        Optional<Comment> optionalComment = commentService.getCommentById(commentId);
+        if (!optionalComment.isPresent()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        Comment existingComment = optionalComment.get();
 
-        Comment comment = new Comment(postId, commentRequest.getParentCommentId(), authorId, commentRequest.getContent());
-        comment.setId(commentId);
-        Comment updatedComment = commentService.updateComment(comment);
+        // Check if the user is the author
+        if (!existingComment.getAuthorId().equals(userId)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        // Prepare comment object for update
+        Comment commentToUpdate = new Comment();
+        commentToUpdate.setId(commentId);
+        commentToUpdate.setContent(commentRequest.getContent());
+
+        Comment updatedComment = commentService.updateComment(commentToUpdate);
         return new ResponseEntity<>(updatedComment, HttpStatus.OK);
     }
 
     /**
      * Delete a comment and its replies.
+     * Ensures only the author can delete their comment.
      */
     @DeleteMapping("/{commentId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteComment(
-            @PathVariable("postId") ObjectId postId,
-            @PathVariable("commentId") ObjectId commentId) {
+            @PathVariable("commentId") String commentId) {
+        // Get authenticated user
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username);
+        if (user == null) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+        String userId = user.getId();
+
+        // Fetch the comment
+        Optional<Comment> optionalComment = commentService.getCommentById(commentId);
+        if (!optionalComment.isPresent()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        Comment comment = optionalComment.get();
+
+        // Check if the user is the author
+        if (!comment.getAuthorId().equals(userId)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
         commentService.deleteComment(commentId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
 
-/**
- * DTO for comment creation/update requests.
- */
-class CommentRequest {
-    private String parentCommentId;
-    private String content;
-
-    // Getters and Setters
-    public ObjectId getParentCommentId() { return new ObjectId(parentCommentId); }
-    public void setParentCommentId(ObjectId parentCommentId) { this.parentCommentId = String.valueOf(parentCommentId); }
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
-}

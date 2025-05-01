@@ -4,15 +4,12 @@ import edu.cit.taskbounty.model.User;
 import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -86,10 +83,11 @@ public class AuthService {
      */
     public ResponseEntity<?> verifyUser(String username, Long code) {
         User user = userRepository.findByUsername(username);
+
         if (user.isVerified()) {
             return new ResponseEntity<>(HttpStatus.IM_USED);
         }
-        if (Objects.equals(user.getVerificationCode(), code)) {
+        if (user.getVerificationCode() == code) {
             user.setVerified(true);
             user.setResendAttempts(0);
             user.setLastCodeSentTimestamp(0);
@@ -150,7 +148,7 @@ public class AuthService {
 
     }
 
-    public boolean changeEmail(String username, String newEmail) {
+    public void changeEmail(String username, String newEmail) {
         User user = userRepository.findByUsername(username);
 
         // Same cooldown logic as resend
@@ -176,7 +174,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        return true;
     }
 
     private int generateVerificationCode() {

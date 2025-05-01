@@ -1,6 +1,5 @@
 package edu.cit.taskbounty.model;
 
-import org.bson.types.ObjectId;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -25,7 +24,6 @@ public class BountyPost {
     private int downvotes;
     private List<String> votedUp; // List of user IDs who upvoted
     private List<String> votedDown; // List of user IDs who downvoted
-    private int commentCount; // Total number of comments and replies
     @CreatedDate
     private Instant createdAt;
     @LastModifiedDate
@@ -48,7 +46,6 @@ public class BountyPost {
         this.downvotes = 0;
         this.votedUp = new ArrayList<>();
         this.votedDown = new ArrayList<>();
-        this.commentCount = 0;
     }
 
     // Getters and Setters
@@ -72,8 +69,7 @@ public class BountyPost {
     public void setVotedUp(List<String> votedUp) { this.votedUp = votedUp; }
     public List<String> getVotedDown() { return votedDown; }
     public void setVotedDown(List<String> votedDown) { this.votedDown = votedDown; }
-    public int getCommentCount() { return commentCount; }
-    public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
+
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
