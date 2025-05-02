@@ -21,7 +21,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Use findById to get user by ID if that's how you're passing the user identifier
-        Optional<User> userOptional = userRepository.findByUsername(username);
+        Optional<User> userOptional = Optional.ofNullable(userRepository.findByUsername(username));
 
         return userOptional
                 .map(user -> new org.springframework.security.core.userdetails.User(

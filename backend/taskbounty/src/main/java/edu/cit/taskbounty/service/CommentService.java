@@ -24,51 +24,43 @@ public class CommentService {
     /**
      * Create a new comment or reply (authenticated users only).
      */
-    @PreAuthorize("isAuthenticated()")
-    public Comment createComment(ObjectId bountyPostId, ObjectId parentCommentId, ObjectId authorId, String content) {
-        BountyPost post = bountyPostRepository.findById(bountyPostId)
+    public Comment createComment(String bountyPostId, String parentCommentId, String authorId, String content) {
+        BountyPost post = bountyPostRepository.findById(new ObjectId(bountyPostId))
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
-
         if (!post.isPublic()) {
             throw new RuntimeException("Cannot comment on a non-public BountyPost");
         }
-
-        if (parentCommentId != null) {
-            commentRepository.findById(parentCommentId)
-                    .orElseThrow(() -> new RuntimeException("Parent comment not found"));
-        }
-
-        Comment comment = new Comment(bountyPostId, parentCommentId, authorId, content);
+        Comment comment = new Comment();
+        comment.setParentCommentId(parentCommentId);
+        comment.setBountyPostId(bountyPostId);
+        comment.setAuthorId(authorId);
+        comment.setContent(content);
         comment = commentRepository.save(comment);
-
-        // Update comment count in BountyPost
-        post.setCommentCount(post.getCommentCount() + 1);
         bountyPostRepository.save(post);
-
         return comment;
     }
 
     /**
      * Get all comments for a BountyPost (public posts only).
      */
-    public List<Comment> getCommentsByBountyPostId(ObjectId bountyPostId) {
-        BountyPost post = bountyPostRepository.findById(bountyPostId)
+    public List<Comment> getCommentsByBountyPostId(String bountyPostId) {
+        BountyPost post = bountyPostRepository.findById(new ObjectId(bountyPostId))
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
 
         if (!post.isPublic()) {
             throw new RuntimeException("BountyPost is not public");
         }
 
-        return commentRepository.findByBountyPostId(bountyPostId);
+        return commentRepository.findByBountyPostId(new ObjectId(bountyPostId));
     }
 
     /**
      * Get a comment by ID (public posts only).
      */
-    public Optional<Comment> getCommentById(ObjectId id) {
-        Optional<Comment> comment = commentRepository.findById(id);
+    public Optional<Comment> getCommentById(String id) {
+        Optional<Comment> comment = commentRepository.findById(new ObjectId(id));
         if (comment.isPresent()) {
-            BountyPost post = bountyPostRepository.findById(comment.get().getBountyPostId())
+            BountyPost post = bountyPostRepository.findById(new ObjectId(comment.get().getBountyPostId()))
                     .orElseThrow(() -> new RuntimeException("BountyPost not found"));
             if (post.isPublic()) {
                 return comment;
@@ -82,7 +74,7 @@ public class CommentService {
      */
     @PreAuthorize("isAuthenticated() and #comment.authorId == principal.id")
     public Comment updateComment(Comment comment) {
-        Comment existingComment = commentRepository.findById(comment.getId())
+        Comment existingComment = commentRepository.findById(new ObjectId(comment.getId()))
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
         existingComment.setContent(comment.getContent());
         return commentRepository.save(existingComment);
@@ -92,35 +84,25 @@ public class CommentService {
      * Delete a comment and its replies (author only).
      */
     @PreAuthorize("isAuthenticated() and #id == principal.id")
-    public void deleteComment(ObjectId id) {
-        Comment comment = commentRepository.findById(id)
+    public void deleteComment(String id) {
+        Comment comment = commentRepository.findById(new ObjectId(id))
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
         // Recursively delete comment and its replies
         deleteCommentAndReplies(comment);
 
         // Update comment count in BountyPost
-        BountyPost post = bountyPostRepository.findById(comment.getBountyPostId())
+        BountyPost post = bountyPostRepository.findById(new ObjectId(comment.getBountyPostId()))
                 .orElseThrow(() -> new RuntimeException("BountyPost not found"));
-        int deletedCount = countDeletedComments(id);
-        post.setCommentCount(post.getCommentCount() - deletedCount);
         bountyPostRepository.save(post);
     }
 
     private void deleteCommentAndReplies(Comment comment) {
-        List<Comment> replies = commentRepository.findByParentCommentId(comment.getId());
+        List<Comment> replies = commentRepository.findByParentCommentId(new ObjectId(comment.getId()));
         for (Comment reply : replies) {
             deleteCommentAndReplies(reply);
         }
         commentRepository.delete(comment);
     }
 
-    private int countDeletedComments(ObjectId commentId) {
-        int count = 1; // Count the comment itself
-        List<Comment> replies = commentRepository.findByParentCommentId(commentId);
-        for (Comment reply : replies) {
-            count += countDeletedComments(reply.getId());
-        }
-        return count;
-    }
 }

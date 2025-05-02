@@ -20,9 +20,7 @@ public class Solution {
     // The ID of the user who submitted the solution
     private String submitterId;
 
-    private String description;
-    // For file submission
-    private List<Path> pathList = new ArrayList<>();
+    private String content;
 
     // Flag to indicate if the bounty post creator approved this solution
     private boolean approved;
@@ -34,11 +32,11 @@ public class Solution {
     public Solution() {
     }
 
-    public Solution(String id, String bountyPostId, String submitterId, String description, boolean approved, LocalDateTime createdAt) {
+    public Solution(String id, String bountyPostId, String submitterId, String content, boolean approved, LocalDateTime createdAt) {
         this.id = id;
         this.bountyPostId = bountyPostId;
         this.submitterId = submitterId;
-        this.description = description;
+        this.content = content;
         this.approved = approved;
         this.createdAt = createdAt;
     }
@@ -67,20 +65,12 @@ public class Solution {
         this.submitterId = submitterId;
     }
 
-    public String getDescription() {
-        return description;
+    public String getContent() {
+        return content;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public List<Path> getImagePathList() {
-        return pathList;
-    }
-
-    public void setImagePathList(List<Path> newPathList) {
-        this.pathList = pathList;
+    public void setContent(String content) {
+        this.content = content;
     }
 
     public boolean isApproved() {

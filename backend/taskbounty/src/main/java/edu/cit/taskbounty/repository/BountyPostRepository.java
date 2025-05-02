@@ -6,21 +6,22 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
-import org.springframework.stereotype.Repository;
 
-@Repository
+import java.util.List;
+import java.util.Optional;
+
 public interface BountyPostRepository extends MongoRepository<BountyPost, ObjectId> {
-    // Find all public posts with pagination
-    Page<BountyPost> findByIsPublicTrue(Pageable pageable);
+    @Query("{ 'isPublic': true }")
+    Page<BountyPost> findAllPublic(Pageable pageable);
 
-    // Search public posts by text with pagination
-    @Query("{ 'isPublic': true, $text: { $search: ?0 } }")
-    Page<BountyPost> searchBountyPosts(String search, Pageable pageable);
+    @Query("{ $or: [ { 'title': { $regex: ?0, $options: 'i' } }, { 'description': { $regex: ?0, $options: 'i' } } ], 'isPublic': true }")
+    Page<BountyPost> searchPublicBountyPosts(String search, Pageable pageable);
 
-    Page<BountyPost> findByCreatorId(String creatorId, Pageable pageable);
+    // New method to find draft posts (non-public) for a specific user
+    @Query("{ 'creatorId': ?0, 'isPublic': false }")
+    Page<BountyPost> findDraftsByCreatorId(String creatorId, Pageable pageable);
 
-    @Query("{ 'creatorId': ?0, $text: { $search: ?1 } }")
-    Page<BountyPost> searchMyBountyPosts(String creatorId, String search, Pageable pageable);
-
-
+    // New method to find a specific draft post for a user
+    @Query("{ '_id': ?0, 'creatorId': ?1, 'isPublic': false }")
+    Optional<BountyPost> findDraftByIdAndCreatorId(ObjectId id, String creatorId);
 }

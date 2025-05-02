@@ -27,8 +27,8 @@ public class JwtService {
 
 
     private Claims extractAllClaims(String token) {
-        JwtParser parser = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        JwtParser parser = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build();
 
         Jwt<?, ?> jwt = parser.parse(token);

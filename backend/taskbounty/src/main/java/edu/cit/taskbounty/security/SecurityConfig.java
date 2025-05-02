@@ -1,6 +1,7 @@
 package edu.cit.taskbounty.security;
 
 import edu.cit.taskbounty.util.JwtAuthFilter;
+import edu.cit.taskbounty.util.RateLimitingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,9 +15,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
@@ -25,11 +23,15 @@ import java.util.Arrays;
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(RateLimitingFilter rateLimitingFilter, JwtAuthFilter jwtAuthFilter) {
+        this.rateLimitingFilter = rateLimitingFilter;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,11 +39,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for stateless API
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Stateless authentication
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/bounty_post/**").authenticated() // Secure specific routes
-                        .requestMatchers("/bounty_post/*/donation-success").permitAll() // Allow Stripe callback
+                        .requestMatchers("/bounty_post/**", "/solutions/**", "/stripe-account/**").authenticated() // Secure specific routes
+                        .requestMatchers("/bounty_post/{id}/donate", "/bounty_post/{id}/payment-success", "/bounty_post/{id}/donation-success").permitAll() // Allow Stripe callback
                         .anyRequest().permitAll()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Use JWT authentication
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class) // Use JWT authentication
+                .addFilterBefore(rateLimitingFilter, JwtAuthFilter.class)
                 .build();
     }
 
