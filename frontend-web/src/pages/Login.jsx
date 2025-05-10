@@ -1,48 +1,56 @@
-import { Link } from 'react-router-dom'
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-function LoginPage() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Green bar on top with no borders */}
-      <div className="header">
-        <h1 className="text-xl font-bold">Task Bounty</h1>
-      </div>
+export function Login() {
+    const navigate = useNavigate();
 
-      {/* Full-height flexbox container to center the form */}
-      <div className="flex items-center justify-center flex-grow bg-gray-100">
-        <div className="form-container">
-          <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-          <form>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                id="email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+    return (
+        <div className="bg-gray-100 flex items-center justify-center min-h-screen">
+            {/* Container takes full width of the screen */}
+            <div className="bg-white p-8 rounded-2xl shadow-md w-full">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-center text-gray-800">Login</h1>
+                </div>
+
+                {/* Login Form */}
+                <form className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <input
+                            type="text"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input
+                            type="password"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
+                    >
+                        Sign In
+                    </button>
+                </form>
+
+                {/* Register Link */}
+                <p className="text-sm text-center text-gray-600 mt-4">
+                    Don't have an account?{' '}
+                    <span
+                        onClick={() => navigate('/register')}
+                        className="text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                    >
+                        Register
+                    </span>
+                </p>
             </div>
-            <div className="mb-6">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                id="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">
-              Login
-            </button>
-          </form>
-          <p className="mt-4 text-sm text-center">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-blue-500 hover:underline">
-              Register here
-            </Link>
-          </p>
         </div>
-      </div>
-    </div>
-  )
+    );
 }
-
-export default LoginPage
