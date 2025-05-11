@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onRegisterClick: () -> Unit,
@@ -104,15 +105,30 @@ fun LoginScreen(
                             scope.launch(Dispatchers.IO) {
                                 try {
                                     val response = RetrofitClient.instance.login(request)
+
                                     withContext(Dispatchers.Main) {
                                         if (response.isSuccessful && response.body()?.status == "success") {
+                                            val userData = response.body()?.data
+
+                                            AppSession.username = userData?.username
+                                            AppSession.userId = userData?.userId
+                                            AppSession.email = userData?.email
+                                            AppSession.countryCode = userData?.countryCode
+                                            AppSession.birthDate = userData?.birthDate
+
                                             val cookie = response.headers()["Set-Cookie"]
-                                            val jwtToken = cookie?.substringAfter("jwt=")?.substringBefore(";") ?: ""
+                                            if (cookie != null && cookie.contains("jwt=")) {
+                                                AppSession.jwtToken = cookie.substringAfter("jwt=").substringBefore(";")
+                                            } else {
+                                                AppSession.jwtToken = null
+                                            }
 
-                                            // Store jwtToken if needed (DataStore, SharedPrefs, etc.)
-
-                                            Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
-                                            onLoginSuccess()
+                                            if (AppSession.jwtToken.isNullOrEmpty()) {
+                                                Toast.makeText(context, "Login failed: No token received.", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
+                                                onLoginSuccess()
+                                            }
                                         } else {
                                             Toast.makeText(context, response.body()?.message ?: "Login failed", Toast.LENGTH_SHORT).show()
                                         }

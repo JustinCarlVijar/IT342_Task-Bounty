@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Redirecting...</title></head>
+<body>
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionId = urlParams.get('session_id');
+  window.location.href = `bountymobile://payment_success?session_id=${sessionId}`;
+</script>
+<p>Redirecting to Task Bounty App...</p>
+</body>
+</html>

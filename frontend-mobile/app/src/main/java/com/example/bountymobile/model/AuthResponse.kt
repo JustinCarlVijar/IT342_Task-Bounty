@@ -2,8 +2,8 @@ package com.example.bountymobile.model
 
 data class AuthResponse(
     val status: String,
-    val data: AuthData?,           // Nullable for error cases
-    val message: String? = null    // May contain error or success messages
+    val data: AuthData?,
+    val message: String? = null
 )
 
 data class AuthData(

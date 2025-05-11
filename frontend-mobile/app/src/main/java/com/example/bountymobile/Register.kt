@@ -195,6 +195,16 @@ fun RegisterScreen(
 
                                     withContext(Dispatchers.Main) {
                                         if (response.isSuccessful && response.body()?.status == "success") {
+                                            val userData = response.body()?.data
+                                            AppSession.username = username
+                                            AppSession.jwtToken = token
+                                            AppSession.userId = userData?.userId
+
+                                            // ✅ Save user inputs to display in profile
+                                            AppSession.email = email
+                                            AppSession.birthDate = birthDate
+                                            AppSession.countryCode = countryCode
+
                                             Toast.makeText(context, "Registered successfully! Please verify your email.", Toast.LENGTH_SHORT).show()
                                             onRegisterSuccess(username, token)
                                         } else {

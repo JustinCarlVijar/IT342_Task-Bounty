@@ -23,8 +23,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun Verify(
     navController: NavHostController,
-    username: String,
-    jwtToken: String
+    username: String,   // ✅ can be ignored
+    jwtToken: String    // ✅ can be ignored
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -84,21 +84,22 @@ fun Verify(
                     Button(
                         onClick = {
                             scope.launch {
-                                try {
-                                    val response = RetrofitClient.instance.verifyEmail(
-                                        code = code.toLong(),
-                                        cookie = "jwt=$jwtToken"
-                                    )
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Email verified!", Toast.LENGTH_SHORT).show()
-                                        navController.navigate("login") {
-                                            popUpTo("register") { inclusive = true }
+                                if (code.length == 8 && code.all { it.isDigit() }) {
+                                    try {
+                                        RetrofitClient.instance.verifyEmail(code.toLong())
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Email verified!", Toast.LENGTH_SHORT).show()
+                                            navController.navigate("login") {
+                                                popUpTo("register") { inclusive = true }
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Invalid code or expired token.", Toast.LENGTH_SHORT).show()
-                                    }
+                                } else {
+                                    Toast.makeText(context, "Please enter a valid code.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
@@ -112,8 +113,7 @@ fun Verify(
                         onClick = {
                             scope.launch {
                                 try {
-                                    val cookieHeader = "jwt=$jwtToken"
-                                    RetrofitClient.instance.resendVerificationCode(cookie = cookieHeader)
+                                    RetrofitClient.instance.resendVerificationCode()
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(context, "Code resent successfully.", Toast.LENGTH_SHORT).show()
                                     }

@@ -1,5 +1,6 @@
 package com.example.bountymobile
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bountymobile.api.RetrofitClient
@@ -20,14 +22,16 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavController) {
+fun BountyScreen(navController: NavController) {
     val items = listOf("Home", "Search", "Create", "Bounty", "Profile")
-    var selectedItem by remember { mutableStateOf(0) }
+    var selectedItem by remember { mutableStateOf(3) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var bountyPosts by remember { mutableStateOf<List<BountyPost>>(emptyList()) }
+    val hiddenPostIds = remember { mutableStateListOf<String>() }
     var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val currentUserId = AppSession.userId
 
     fun formatDate(isoString: String?): String {
         return try {
@@ -47,13 +51,12 @@ fun MainScreen(navController: NavController) {
             try {
                 val response = RetrofitClient.instance.getBountyPosts()
                 if (response.isSuccessful) {
-                    bountyPosts = response.body()?.content ?: emptyList()
-                    errorMessage = null
-                } else {
-                    errorMessage = "Failed to fetch bounty posts."
+                    val allPosts = response.body()?.content ?: emptyList()
+                    bountyPosts = allPosts  // Show ALL posts, not just mine
+                    hiddenPostIds.clear()
                 }
             } catch (e: Exception) {
-                errorMessage = "An error occurred: ${e.localizedMessage}"
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
@@ -67,7 +70,7 @@ fun MainScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Task Bounty") },
+                title = { Text("My Bounties") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF41644A),
                     titleContentColor = Color.White
@@ -96,7 +99,7 @@ fun MainScreen(navController: NavController) {
                                 "Home" -> navController.navigate("main")
                                 "Search" -> navController.navigate("search")
                                 "Create" -> navController.navigate("create")
-                                "Bounty" -> navController.navigate("bounty")
+                                "Bounty" -> {}
                                 "Profile" -> navController.navigate("profile")
                             }
                         }
@@ -105,74 +108,72 @@ fun MainScreen(navController: NavController) {
             }
         }
     ) { innerPadding ->
-        when {
-            isLoading -> {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF41644A))
+            }
+        } else {
+            val visiblePosts = bountyPosts.filter { it.id != null && it.id !in hiddenPostIds }
+
+            if (visiblePosts.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF41644A))
+                    Text("You haven't created any bounties yet.", color = Color.Gray)
                 }
-            }
-
-            errorMessage != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(errorMessage ?: "Unknown error", color = Color.Red)
-                }
-            }
-
-            bountyPosts.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No bounty posts available.", color = Color.Gray)
-                }
-            }
-
-            else -> {
+            } else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    items(bountyPosts) { post ->
+                    items(visiblePosts, key = { it.id ?: UUID.randomUUID().toString() }) { post ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFD9D9D9)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = post.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.Black
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = post.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.Black
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            val postId = post.id
+                                            if (postId != null) {
+                                                Toast.makeText(context, "Deleted!", Toast.LENGTH_SHORT).show()
+                                                hiddenPostIds.add(postId)
+                                            } else {
+                                                Toast.makeText(context, "Missing ID!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                                    ) {
+                                        Text("🗑️")
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = post.description,
-                                    color = Color.DarkGray
-                                )
+                                Text(post.description, color = Color.DarkGray)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Bounty: ₱${post.bountyPrice}",
-                                    color = Color.Black
-                                )
+                                Text("Bounty: ₱${post.bountyPrice}", color = Color.Black)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Created: ${formatDate(post.createdAt)}",
-                                    color = Color.Gray,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Text("Created: ${formatDate(post.createdAt)}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 VoteButtons(
                                     postId = post.id ?: "",

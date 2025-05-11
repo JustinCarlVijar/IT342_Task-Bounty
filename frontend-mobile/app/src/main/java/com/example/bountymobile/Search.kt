@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bountymobile.api.RetrofitClient
@@ -20,14 +21,33 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavController) {
+fun SearchScreen(navController: NavController) {
     val items = listOf("Home", "Search", "Create", "Bounty", "Profile")
-    var selectedItem by remember { mutableStateOf(0) }
+    var selectedItem by remember { mutableStateOf(1) }
 
     val scope = rememberCoroutineScope()
-    var bountyPosts by remember { mutableStateOf<List<BountyPost>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var allPosts by remember { mutableStateOf<List<BountyPost>>(emptyList()) }
+    var filteredPosts by remember { mutableStateOf<List<BountyPost>>(emptyList()) }
+    var searchText by remember { mutableStateOf(TextFieldValue("")) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    fun refreshPosts() {
+        scope.launch {
+            isLoading = true
+            try {
+                val response = RetrofitClient.instance.getBountyPosts()
+                if (response.isSuccessful) {
+                    val posts = response.body()?.content ?: emptyList()
+                    allPosts = posts
+                    filteredPosts = posts
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     fun formatDate(isoString: String?): String {
         return try {
@@ -42,24 +62,6 @@ fun MainScreen(navController: NavController) {
         }
     }
 
-    fun refreshPosts() {
-        scope.launch {
-            try {
-                val response = RetrofitClient.instance.getBountyPosts()
-                if (response.isSuccessful) {
-                    bountyPosts = response.body()?.content ?: emptyList()
-                    errorMessage = null
-                } else {
-                    errorMessage = "Failed to fetch bounty posts."
-                }
-            } catch (e: Exception) {
-                errorMessage = "An error occurred: ${e.localizedMessage}"
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         refreshPosts()
     }
@@ -67,7 +69,7 @@ fun MainScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Task Bounty") },
+                title = { Text("Search Bounties") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF41644A),
                     titleContentColor = Color.White
@@ -85,7 +87,6 @@ fun MainScreen(navController: NavController) {
                         "Profile" -> Icons.Default.Person
                         else -> Icons.Default.Home
                     }
-
                     NavigationBarItem(
                         icon = { Icon(icon, contentDescription = label) },
                         label = { Text(label) },
@@ -94,7 +95,7 @@ fun MainScreen(navController: NavController) {
                             selectedItem = index
                             when (label) {
                                 "Home" -> navController.navigate("main")
-                                "Search" -> navController.navigate("search")
+                                "Search" -> {}
                                 "Create" -> navController.navigate("create")
                                 "Bounty" -> navController.navigate("bounty")
                                 "Profile" -> navController.navigate("profile")
@@ -105,68 +106,74 @@ fun MainScreen(navController: NavController) {
             }
         }
     ) { innerPadding ->
-        when {
-            isLoading -> {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = {
+                    searchText = it
+                    val query = it.text.trim().lowercase()
+                    filteredPosts = if (query.isBlank()) {
+                        allPosts
+                    } else {
+                        allPosts.filter { post ->
+                            post.title.lowercase().contains(query) ||
+                                    post.description.lowercase().contains(query)
+                        }
+                    }
+                },
+                placeholder = { Text("Search by title or description") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedBorderColor = Color(0xFF41644A),
+                    cursorColor = Color.Black
+                )
+            )
+
+            if (isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(top = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = Color(0xFF41644A))
                 }
-            }
-
-            errorMessage != null -> {
+            } else if (filteredPosts.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(top = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(errorMessage ?: "Unknown error", color = Color.Red)
+                    Text("No results found.", color = Color.Gray)
                 }
-            }
-
-            bountyPosts.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No bounty posts available.", color = Color.Gray)
-                }
-            }
-
-            else -> {
+            } else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(innerPadding)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(bountyPosts) { post ->
+                    items(filteredPosts) { post ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFD9D9D9)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = post.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.Black
-                                )
+                                Text(post.title, style = MaterialTheme.typography.titleMedium, color = Color.Black)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = post.description,
-                                    color = Color.DarkGray
-                                )
+                                Text(post.description, color = Color.DarkGray)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Bounty: ₱${post.bountyPrice}",
-                                    color = Color.Black
-                                )
+                                Text("Bounty: ₱${post.bountyPrice}", color = Color.Black)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Created: ${formatDate(post.createdAt)}",

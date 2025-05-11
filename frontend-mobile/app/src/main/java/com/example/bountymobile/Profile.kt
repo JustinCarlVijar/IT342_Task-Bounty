@@ -1,7 +1,11 @@
 package com.example.bountymobile
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,12 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.alpha
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Profile(navController: NavController) {
     val items = listOf("Home", "Search", "Create", "Bounty", "Profile")
-    var selectedItem by remember { mutableStateOf(4) }
+    var selectedItem by remember { mutableIntStateOf(4) }
+    val username = AppSession.username ?: "Unknown"
 
     Scaffold(
         topBar = {
@@ -51,7 +58,16 @@ fun Profile(navController: NavController) {
                         icon = { Icon(icon, contentDescription = label) },
                         label = { Text(label) },
                         selected = selectedItem == index,
-                        onClick = { selectedItem = index }
+                        onClick = {
+                            selectedItem = index
+                            when (label) {
+                                "Home" -> navController.navigate("main")
+                                "Search" -> navController.navigate("search")
+                                "Create" -> navController.navigate("create")
+                                "Bounty" -> navController.navigate("bounty")
+                                "Profile" -> {} // Already here
+                            }
+                        }
                     )
                 }
             }
@@ -61,14 +77,45 @@ fun Profile(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Username: Ashbalala", style = MaterialTheme.typography.headlineSmall)
-            Text("Description: I’ve slain dragons, outwitted dark sorcerers, that’s how the bards will sing when they tell of my legendary deeds.")
-            Text("Activities: N/A")
-            Text("Bounties: N/A")
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "User Avatar",
+                tint = Color(0xFF41644A),
+                modifier = Modifier
+                    .size(96.dp)
+                    .alpha(0.9f)
+            )
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE0E0E0)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Username", fontSize = 18.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = username,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.Black
+                    )
+                }
+            }
+
+            Text(
+                text = "Welcome to your profile!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
         }
     }
 }

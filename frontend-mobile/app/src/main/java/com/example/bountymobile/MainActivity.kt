@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -18,7 +17,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.bountymobile.ui.theme.BountyMobileTheme
+import androidx.compose.ui.Alignment
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,6 +83,32 @@ fun NavigationGraph(navController: NavHostController, modifier: Modifier = Modif
         }
         composable("profile") {
             Profile(navController = navController)
+        }
+        composable("create") {
+            Create(navController = navController)
+        }
+        composable("bounty") {
+            BountyScreen(navController = navController)
+        }
+        composable("search") {
+            SearchScreen(navController = navController)
+        }
+        composable(
+            route = "payment_success",
+            deepLinks = listOf(navDeepLink {
+                uriPattern = "bountymobile://payment_success"
+            })
+        ) {
+            BountyScreen(navController = navController)
+        }
+
+        // ✅ Added Comments Screen
+        composable(
+            "comments/{bountyPostId}",
+            arguments = listOf(navArgument("bountyPostId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bountyPostId = backStackEntry.arguments?.getString("bountyPostId") ?: ""
+            CommentsScreen(navController = navController, bountyPostId = bountyPostId)
         }
     }
 }

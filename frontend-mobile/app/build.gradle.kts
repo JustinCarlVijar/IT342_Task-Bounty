@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("kotlin-kapt") // ✅ Enable annotation processor for Room
 }
 
 android {
@@ -47,22 +48,26 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM and UI
+    // Jetpack Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Custom Tabs
+    implementation("androidx.browser:browser:1.7.0")
 
-    // ✅ Required for KeyboardOptions and text input features
-    implementation(libs.androidx.ui.text)
+    // Stripe SDK
+    implementation("com.stripe:stripe-android:21.12.0")
 
-    // Retrofit & Coroutine
+    // Retrofit + Gson
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
@@ -71,6 +76,11 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose.v277)
+
+    // ✅ Room (local storage for bounty posts)
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 
     // Testing
     testImplementation(libs.junit)
