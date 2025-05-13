@@ -1,38 +1,29 @@
 package edu.cit.taskbounty.model;
 
-import org.bson.types.ObjectId;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.Instant;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 @Document(collection = "comments")
 public class Comment {
-
     @Id
     private String id;
-    private String bountyPostId; // Links to the BountyPost
-    private String parentCommentId; // Links to the parent comment (null for top-level)
-    private String authorId; // User who wrote the comment
-    private String content; // Comment text (Markdown)
-    @CreatedDate
-    private Instant createdAt;
-    @LastModifiedDate
-    private Instant updatedAt;
+    @Field("bountyPostId")
+    private String bountyPostId;
+    @Field("parentCommentId")
+    private String parentCommentId;
+    @Field("authorId")
+    private String authorId;
+    @Field("authorUsername")
+    private String authorUsername;
+    @Field("content")
+    private String content;
+    @Field("createdAt")
+    private String createdAt;
+    @Field("updatedAt")
+    private String updatedAt;
 
-    public Comment() {
-    }
-
-    public Comment(String id, String bountyPostId, String parentCommentId, String authorId, String content) {
-        this.id = id;
-        this.bountyPostId = bountyPostId;
-        this.parentCommentId = parentCommentId;
-        this.authorId = authorId;
-        this.content = content;
-    }
-
+    // Getters and setters
     public String getId() {
         return id;
     }
@@ -65,6 +56,14 @@ public class Comment {
         this.authorId = authorId;
     }
 
+    public String getAuthorUsername() {
+        return authorUsername;
+    }
+
+    public void setAuthorUsername(String authorUsername) {
+        this.authorUsername = authorUsername;
+    }
+
     public String getContent() {
         return content;
     }
@@ -73,19 +72,19 @@ public class Comment {
         this.content = content;
     }
 
-    public Instant getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public String getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
+    public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }
 }

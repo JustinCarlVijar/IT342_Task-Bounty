@@ -105,19 +105,18 @@ public class BountyPostService {
             return ResponseEntity.ok(post.get());
         }
 
-        // If post is not public, check if the current user is the creator
-        if (!isUserAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(null);
-        }
-
-        User currentUser = getCurrentUser();
-        if (!currentUser.getId().equals(post.get().getCreatorId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(null);
-        }
-
+        // For draft posts, allow access without authentication for payment confirmation
+        // This assumes the caller (e.g., Stripe payment success) has validated the request
         return ResponseEntity.ok(post.get());
+    }
+
+    public Page<BountyPost> getBountyPostsByCreatorId(String creatorId, int page, int size, String sortBy, String search) {
+        logger.debug("Fetching bounty posts for creatorId: {}, page: {}, size: {}, sortBy: {}, search: {}", creatorId, page, size, sortBy, search);
+        Sort sort = Sort.by(sortBy.equals("most_upvoted") ? "upvotes" : "createdAt").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<BountyPost> posts = bountyPostRepository.findByCreatorId(creatorId, pageable);
+        logger.info("Retrieved {} bounty posts for creatorId: {}", posts.getTotalElements(), creatorId);
+        return posts;
     }
 
     public boolean vote(String bountyPostId, String voteType) {

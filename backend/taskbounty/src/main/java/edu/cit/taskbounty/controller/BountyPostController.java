@@ -2,15 +2,22 @@ package edu.cit.taskbounty.controller;
 
 import edu.cit.taskbounty.dto.BountyPostRequest;
 import edu.cit.taskbounty.model.BountyPost;
+import edu.cit.taskbounty.model.User;
+import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.service.BountyPostService;
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @RestController
 @RequestMapping("/bounty_post")
@@ -18,8 +25,11 @@ public class BountyPostController {
 
     private final BountyPostService bountyPostService;
 
-    public BountyPostController(BountyPostService bountyPostService) {
+    private final UserRepository userRepository;
+
+    public BountyPostController(BountyPostService bountyPostService, UserRepository userRepository) {
         this.bountyPostService = bountyPostService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping
@@ -65,6 +75,28 @@ public class BountyPostController {
             @RequestParam(required = false) String search) {
         Page<BountyPost> posts = bountyPostService.getBountyPosts(page, size, sortBy, search);
         return new ResponseEntity<>(posts, HttpStatus.OK);
+    }
+
+    @GetMapping("/my_posts")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getMyBountyPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "most_upvoted") String sortBy,
+            @RequestParam(required = false) String search) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            User user = userRepository.findByUsername(username);
+            if (user == null) {
+                return ResponseEntity.status(UNAUTHORIZED).body("User not authenticated");
+            }
+
+            Page<BountyPost> posts = bountyPostService.getBountyPostsByCreatorId(user.getId(), page, size, sortBy, search);
+            return ResponseEntity.ok(posts);
+        } catch (Exception e) {
+            return ResponseEntity.status(INTERNAL_SERVER_ERROR).body("Unexpected error fetching bounty posts");
+        }
     }
 
     @GetMapping("/{id}")

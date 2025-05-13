@@ -8,6 +8,10 @@ import edu.cit.taskbounty.service.CommentService;
 import edu.cit.taskbounty.dto.CommentRequest;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,27 +35,20 @@ public class CommentController {
     @Autowired
     private BountyPostRepository bountyPostRepository;
 
-    /**
-     * Create a new comment or reply.
-     * Gets the authenticated user from security context instead of request body.
-     */
     @PostMapping("/{postId}/bounty_post")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Comment> createComment(
             @PathVariable("postId") String postId,
             @RequestBody CommentRequest commentRequest) {
-        // Validate postId
         if (!ObjectId.isValid(postId)) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User user = userRepository.findByUsername(username);
         if (user == null) {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
-
         String authorId = user.getId();
         Comment comment = commentService.createComment(
                 postId,
@@ -62,37 +59,82 @@ public class CommentController {
         return new ResponseEntity<>(comment, HttpStatus.CREATED);
     }
 
-    /**
-     * Get all comments for a BountyPost.
-     */
     @GetMapping("/{postId}/bounty_post")
-    public ResponseEntity<List<Comment>> getCommentsByBountyPostId(
-            @PathVariable("postId") String postId) {
-        List<Comment> comments = commentService.getCommentsByBountyPostId(postId);
-        return new ResponseEntity<>(comments, HttpStatus.OK);
+    public ResponseEntity<Page<Comment>> getCommentsByBountyPostId(
+            @PathVariable("postId") String postId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            if (!ObjectId.isValid(postId)) {
+                System.err.println("Invalid postId format: " + postId);
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            Page<Comment> comments = commentService.getCommentsByBountyPostId(postId, pageable);
+            return new ResponseEntity<>(comments, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid postId format: " + postId);
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (RuntimeException e) {
+            System.err.println("Error retrieving comments for postId " + postId + ": " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 
-    /**
-     * Get a specific comment by ID.
-     */
-    @GetMapping("/{commentId}")
-    public ResponseEntity<Comment> getCommentById(
-            @PathVariable("commentId") String commentId) {
-        Optional<Comment> comment = commentService.getCommentById(commentId);
-        return comment.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    @GetMapping("/{postId}/bounty_post/{parentCommentId}")
+    public ResponseEntity<List<Comment>> getRepliesByParentCommentId(
+            @PathVariable("postId") String postId,
+            @PathVariable("parentCommentId") String parentCommentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            if (!ObjectId.isValid(postId) || !ObjectId.isValid(parentCommentId)) {
+                System.err.println("Invalid postId or parentCommentId format: postId=" + postId + ", parentCommentId=" + parentCommentId);
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            List<Comment> replies = commentService.getRepliesByParentCommentId(postId, parentCommentId, pageable);
+            return new ResponseEntity<>(replies, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid postId or parentCommentId format: postId=" + postId + ", parentCommentId=" + parentCommentId);
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (RuntimeException e) {
+            System.err.println("Error retrieving replies for postId " + postId + ", parentCommentId " + parentCommentId + ": " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 
-    /**
-     * Update a comment.
-     * Ensures only the author can update their comment.
-     */
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Comment> getCommentById(@PathVariable("id") String id) {
+        try {
+            if (!ObjectId.isValid(id)) {
+                System.err.println("Invalid comment ID format: " + id);
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+            Optional<Comment> comment = commentService.getCommentById(id);
+            if (comment.isPresent()) {
+                return new ResponseEntity<>(comment.get(), HttpStatus.OK);
+            } else {
+                System.err.println("Comment not found for ID: " + id);
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid comment ID format: " + id);
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (RuntimeException e) {
+            System.err.println("Error retrieving comment for ID " + id + ": " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+
     @PutMapping("/{commentId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Comment> updateComment(
             @PathVariable("commentId") String commentId,
             @RequestBody CommentRequest commentRequest) {
-        // Get authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User user = userRepository.findByUsername(username);
@@ -100,37 +142,25 @@ public class CommentController {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
         String userId = user.getId();
-
-        // Fetch the existing comment
         Optional<Comment> optionalComment = commentService.getCommentById(commentId);
         if (!optionalComment.isPresent()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         Comment existingComment = optionalComment.get();
-
-        // Check if the user is the author
         if (!existingComment.getAuthorId().equals(userId)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-
-        // Prepare comment object for update
         Comment commentToUpdate = new Comment();
         commentToUpdate.setId(commentId);
         commentToUpdate.setContent(commentRequest.getContent());
-
         Comment updatedComment = commentService.updateComment(commentToUpdate);
         return new ResponseEntity<>(updatedComment, HttpStatus.OK);
     }
 
-    /**
-     * Delete a comment and its replies.
-     * Ensures only the author can delete their comment.
-     */
     @DeleteMapping("/{commentId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteComment(
             @PathVariable("commentId") String commentId) {
-        // Get authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User user = userRepository.findByUsername(username);
@@ -138,21 +168,15 @@ public class CommentController {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
         String userId = user.getId();
-
-        // Fetch the comment
         Optional<Comment> optionalComment = commentService.getCommentById(commentId);
         if (!optionalComment.isPresent()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         Comment comment = optionalComment.get();
-
-        // Check if the user is the author
         if (!comment.getAuthorId().equals(userId)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-
         commentService.deleteComment(commentId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
-

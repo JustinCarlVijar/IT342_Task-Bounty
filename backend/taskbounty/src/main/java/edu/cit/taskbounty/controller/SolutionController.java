@@ -2,6 +2,8 @@ package edu.cit.taskbounty.controller;
 
 import edu.cit.taskbounty.dto.SubmitSolutionDTO;
 import edu.cit.taskbounty.model.Solution;
+import edu.cit.taskbounty.model.User;
+import edu.cit.taskbounty.repository.UserRepository;
 import edu.cit.taskbounty.service.BountyPostService;
 import edu.cit.taskbounty.service.SolutionService;
 import org.bson.types.ObjectId;
@@ -13,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.http.HttpStatus.*;
@@ -25,11 +29,13 @@ public class SolutionController {
 
     private final SolutionService solutionService;
     private final BountyPostService bountyPostService;
+    private final UserRepository userRepository;
 
     @Autowired
-    public SolutionController(SolutionService solutionService, BountyPostService bountyPostService) {
+    public SolutionController(SolutionService solutionService, BountyPostService bountyPostService, UserRepository userRepository) {
         this.solutionService = solutionService;
         this.bountyPostService = bountyPostService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -69,6 +75,32 @@ public class SolutionController {
                     submitSolutionDTO.getBountyPostId(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Unexpected error submitting solution");
+        }
+    }
+
+    @GetMapping("/my-solutions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getSolutionsBySubmitter(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching solutions for authenticated user, page: {}, size: {}", page, size);
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            logger.debug("Fetching user: {}", username);
+            User user = userRepository.findByUsername(username);
+            if (user == null) {
+                logger.error("User not found: {}", username);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+            }
+
+            Page<Solution> solutions = solutionService.getSolutionsBySubmitterId(user.getId(), page, size);
+            logger.info("Retrieved {} solutions for user: {}", solutions.getTotalElements(), user.getId());
+            return ResponseEntity.ok(solutions);
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching solutions for user. Error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Unexpected error fetching solutions");
         }
     }
 

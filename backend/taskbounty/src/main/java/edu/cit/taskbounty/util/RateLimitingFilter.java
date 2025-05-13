@@ -29,7 +29,7 @@ public class RateLimitingFilter extends OncePerRequestFilter implements Ordered 
     private final Map<String, RequestTracker> requestCounts = new ConcurrentHashMap<>();
 
     public RateLimitingFilter(
-            @Value("${rate.limiting.max.requests:5}") int maxRequests,
+            @Value("${rate.limiting.max.requests:25}") int maxRequests,
             @Value("${rate.limiting.time.window.seconds:60}") long timeWindowSeconds) {
         this.maxRequests = maxRequests;
         this.timeWindow = Duration.ofSeconds(timeWindowSeconds);

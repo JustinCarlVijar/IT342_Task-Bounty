@@ -58,7 +58,7 @@ public class JwtService {
         return Jwts.builder()
                 .setSubject(user.getUsername())  // Set the subject (username)
                 .setIssuedAt(new Date())  // Set the issue date
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))  // Set expiration time (24 hours)
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))// Set expiration time (24 hours)
                 .signWith(getSigningKey())  // Sign the token with the secret key
                 .compact();  // Create the token
     }
