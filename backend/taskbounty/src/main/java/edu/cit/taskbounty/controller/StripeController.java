@@ -29,6 +29,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -117,14 +118,17 @@ public class StripeController {
     }
 
     @GetMapping("/payment_success/bounty_post")
-    public ResponseEntity<String> confirmPayment(
+    public ResponseEntity<?> confirmPayment(
             @RequestParam String bountyPostId,
             @RequestParam String session_id) {
         logger.info("Confirming payment for bountyPostId: {}", bountyPostId);
         try {
             if (processedDonationService.isProcessed(session_id)) {
                 logger.warn("Payment already processed for session_id: {}", session_id);
-                return ResponseEntity.badRequest().body("Payment has already been processed");
+                // Redirect to dashboard even if already processed
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .header("Location", "/dashboard/draft-bounties")
+                        .body(null);
             }
 
             logger.debug("Retrieving Stripe session: {}", session_id);
@@ -135,7 +139,7 @@ public class StripeController {
                 if (bountyPostResponse.getStatusCode() != HttpStatus.OK || bountyPostResponse.getBody() == null) {
                     logger.warn("Bounty post {} not found or inaccessible", bountyPostId);
                     return ResponseEntity.status(bountyPostResponse.getStatusCode())
-                            .body("Bounty post not found or inaccessible");
+                            .body(Map.of("error", "Bounty post not found or inaccessible"));
                 }
                 BountyPost post = bountyPostResponse.getBody();
                 post.setPublic(true);
@@ -143,18 +147,21 @@ public class StripeController {
                 logger.info("Bounty post {} set to public", bountyPostId);
 
                 processedDonationService.markAsProcessed(session_id);
-                return ResponseEntity.ok("Payment successful, post is now public");
+                // Redirect to dashboard after successful processing
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .header("Location", "/dashboard/draft-bounties")
+                        .body(null);
             }
             logger.warn("Payment failed or session invalid for session_id: {}", session_id);
-            return ResponseEntity.badRequest().body("Payment failed or session invalid");
+            return ResponseEntity.badRequest().body(Map.of("error", "Payment failed or session invalid"));
         } catch (StripeException e) {
             logger.error("Error confirming payment for bountyPostId: {}. Error: {}", bountyPostId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error confirming payment: " + e.getMessage());
+                    .body(Map.of("error", "Error confirming payment: " + e.getMessage()));
         } catch (IllegalArgumentException e) {
             logger.error("Invalid bounty post ID: {}. Error: {}", bountyPostId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Invalid bounty post ID");
+                    .body(Map.of("error", "Invalid bounty post ID"));
         }
     }
 

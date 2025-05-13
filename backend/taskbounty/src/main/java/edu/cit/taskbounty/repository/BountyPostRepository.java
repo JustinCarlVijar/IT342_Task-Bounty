@@ -24,4 +24,14 @@ public interface BountyPostRepository extends MongoRepository<BountyPost, Object
     // New method to find a specific draft post for a user
     @Query("{ '_id': ?0, 'creatorId': ?1, 'isPublic': false }")
     Optional<BountyPost> findDraftByIdAndCreatorId(ObjectId id, String creatorId);
+
+    Page<BountyPost> findByIsPublicTrue(Pageable pageable);
+
+    Page<BountyPost> findByTitleContainingIgnoreCaseAndIsPublicTrue(String title, Pageable pageable);
+
+    Page<BountyPost> findByCreatorIdAndIsPublicFalse(String creatorId, Pageable pageable);
+
+    Optional<BountyPost> findByIdAndCreatorIdAndIsPublicFalse(ObjectId id, String creatorId);
+
+    Page<BountyPost> findByCreatorId(String creatorId, Pageable pageable);
 }

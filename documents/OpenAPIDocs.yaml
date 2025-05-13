@@ -1,0 +1,953 @@
+openapi: 3.0.0
+info:
+  title: TaskBounty API
+  description: API documentation for the TaskBounty application.
+  version: 1.0.0
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/JustinVijar/TaskBounty/1.0.0
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /comment/{postId}/bounty_post:
+    post:
+      summary: Create a new comment or reply
+      description: Creates a new comment or reply on a bounty post. Requires authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Bad request (e.g., invalid postId)
+        '401':
+          description: Unauthorized (not authenticated)
+    get:
+      summary: Get all comments for a bounty post
+      description: Retrieves all comments for a specified bounty post.
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: List of comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
+          description: Bounty post not found
+  /comment/{commentId}:
+    get:
+      summary: Get a specific comment
+      description: Retrieves a comment by its ID.
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+          description: The ID of the comment
+      responses:
+        '200':
+          description: Comment retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '404':
+          description: Comment not found
+    put:
+      summary: Update a comment
+      description: Updates a comment. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+          description: The ID of the comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Comment not found
+    delete:
+      summary: Delete a comment
+      description: Deletes a comment and its replies. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+          description: The ID of the comment
+      responses:
+        '204':
+          description: Comment deleted successfully
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Comment not found
+  /solutions/submit:
+    post:
+      summary: Submit a solution
+      description: Submits a solution for a bounty post. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitSolutionDTO'
+      responses:
+        '201':
+          description: Solution submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solution'
+        '400':
+          description: Bad request (e.g., invalid bountyPostId)
+        '401':
+          description: Unauthorized (not authenticated)
+  /solutions/{id}:
+    get:
+      summary: Get solutions for a bounty post
+      description: Retrieves solutions for a bounty post. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: Solutions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Solution'
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Bounty post not found
+    delete:
+      summary: Delete a solution
+      description: Deletes a solution by its ID. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the solution
+      responses:
+        '200':
+          description: Solution deleted successfully
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Solution not found
+    patch:
+      summary: Update a solution
+      description: Updates a solution by its ID. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the solution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitSolutionDTO'
+      responses:
+        '200':
+          description: Solution updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solution'
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Solution not found
+  /bounty_post:
+    post:
+      summary: Create a new bounty post
+      description: Creates a new bounty post. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BountyPostRequest'
+      responses:
+        '201':
+          description: Bounty post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BountyPost'
+        '400':
+          description: Bad request (e.g., invalid data)
+        '401':
+          description: Unauthorized (not authenticated)
+    get:
+      summary: Get public bounty posts
+      description: Retrieves a paginated list of public bounty posts.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+          description: Page number
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 25
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            default: most_upvoted
+          description: Sort criteria
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search term
+      responses:
+        '200':
+          description: List of bounty posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BountyPost'
+  /bounty_post/draft:
+    get:
+      summary: Get draft bounty posts
+      description: Retrieves a paginated list of draft bounty posts. Requires authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 25
+      responses:
+        '200':
+          description: List of draft bounty posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BountyPost'
+        '401':
+          description: Unauthorized (not authenticated)
+  /bounty_post/{id}/draft:
+    get:
+      summary: Get a specific draft bounty post
+      description: Retrieves a specific draft bounty post. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: Draft bounty post retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BountyPost'
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Bounty post not found
+  /bounty_post/{id}:
+    get:
+      summary: Get a specific bounty post
+      description: Retrieves a specific bounty post by its ID.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: Bounty post retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BountyPost'
+        '404':
+          description: Bounty post not found
+    delete:
+      summary: Delete a bounty post
+      description: Deletes a bounty post by its ID. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: Bounty post deleted successfully
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Bounty post not found
+  /bounty_post/{id}/vote:
+    post:
+      summary: Vote on a bounty post
+      description: Casts an upvote or downvote on a bounty post. Requires authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [upvote, downvote]
+          description: Type of vote
+      responses:
+        '200':
+          description: Vote recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated)
+        '404':
+          description: Bounty post not found
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Registers a new user and sends a verification email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      username:
+                        type: string
+                      email:
+                        type: string
+                      birthDate:
+                        type: string
+                        format: date
+                      countryCode:
+                        type: string
+                      message:
+                        type: string
+        '400':
+          description: Bad request (e.g., invalid data)
+  /auth/verify:
+    post:
+      summary: Verify user email
+      description: Verifies a user's email with a code. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+              required:
+                - code
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated or invalid code)
+  /auth/login:
+    post:
+      summary: Login a user
+      description: Logs in a user and sets a JWT cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: jwt=token; Path=/; HttpOnly; Secure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      username:
+                        type: string
+                      message:
+                        type: string
+        '401':
+          description: Unauthorized (invalid credentials)
+  /auth/resend_code:
+    post:
+      summary: Resend verification code
+      description: Resends a verification code to the user. Requires authentication.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Verification code resent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated)
+  /auth/change_email:
+    post:
+      summary: Change user email
+      description: Changes the user's email. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newEmail:
+                  type: string
+              required:
+                - newEmail
+      responses:
+        '200':
+          description: Email changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated)
+  /auth/update:
+    patch:
+      summary: Update user profile
+      description: Updates the user's profile. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateDTO'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized (not authenticated)
+  /auth/profile:
+    get:
+      summary: Get current user profile
+      description: Retrieves the current user's profile. Requires authentication.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized (not authenticated)
+  /auth/profile/{userId}:
+    get:
+      summary: Get user profile by ID
+      description: Retrieves a user's profile by ID. Requires authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: The ID of the user
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized (not authenticated)
+        '404':
+          description: User not found
+  /stripe/checkout/{bountyPostId}:
+    get:
+      summary: Create a checkout session
+      description: Creates a Stripe checkout session for a bounty post. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: bountyPostId
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+      responses:
+        '200':
+          description: Checkout session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Bounty post not found
+  /stripe/payment_success/bounty_post:
+    get:
+      summary: Confirm payment for a bounty post
+      description: Confirms payment for a bounty post after checkout.
+      parameters:
+        - in: query
+          name: bountyPostId
+          required: true
+          schema:
+            type: string
+          description: The ID of the bounty post
+        - in: query
+          name: session_id
+          required: true
+          schema:
+            type: string
+          description: The Stripe session ID
+      responses:
+        '200':
+          description: Payment confirmed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Bad request (e.g., invalid parameters)
+  /stripe/approve_solution/payout:
+    post:
+      summary: Approve a solution and initiate payout
+      description: Approves a solution and initiates a payout. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                solutionId:
+                  type: string
+              required:
+                - solutionId
+      responses:
+        '200':
+          description: Payout initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Solution not found
+  /stripe/approve_solution/transfer:
+    post:
+      summary: Approve a solution and initiate transfer
+      description: Approves a solution and initiates a transfer. Requires authentication and ownership.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                solutionId:
+                  type: string
+              required:
+                - solutionId
+      responses:
+        '200':
+          description: Transfer initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated or not owner)
+        '404':
+          description: Solution not found
+  /stripe/onboarding:
+    get:
+      summary: Onboard user to Stripe
+      description: Provides a URL for Stripe onboarding. Requires authentication.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding URL provided successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated)
+  /stripe/create_account:
+    post:
+      summary: Create a Stripe account for the user
+      description: Creates a Stripe account for the user. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+              required:
+                - email
+      responses:
+        '200':
+          description: Stripe account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (not authenticated)
+components:
+  schemas:
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        bountyPostId:
+          type: string
+        parentCommentId:
+          type: string
+          nullable: true
+        authorId:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Solution:
+      type: object
+      properties:
+        id:
+          type: string
+        bountyPostId:
+          type: string
+        submitterId:
+          type: string
+        content:
+          type: string
+        approved:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    BountyPost:
+      type: object
+      properties:
+        id:
+          type: string
+        creatorId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        bountyPrice:
+          type: number
+        isPublic:
+          type: boolean
+        upvotes:
+          type: integer
+        downvotes:
+          type: integer
+        votedUp:
+          type: array
+          items:
+            type: string
+        votedDown:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        birthDate:
+          type: string
+          format: date
+        dateCreated:
+          type: string
+          format: date-time
+        lastCodeSentTimestamp:
+          type: integer
+          format: int64
+        resendAttempts:
+          type: integer
+        verificationCode:
+          type: integer
+        countryCode:
+          type: string
+        verified:
+          type: boolean
+        disabled:
+          type: boolean
+        stripeAccountId:
+          type: string
+    CommentRequest:
+      type: object
+      properties:
+        parentCommentId:
+          type: string
+          nullable: true
+        content:
+          type: string
+      required:
+        - content
+    BountyPostRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        bountyPrice:
+          type: number
+      required:
+        - title
+        - description
+        - bountyPrice
+    SubmitSolutionDTO:
+      type: object
+      properties:
+        bountyPostId:
+          type: string
+        description:
+          type: string
+      required:
+        - bountyPostId
+        - description
+    UserUpdateDTO:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 8
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-Z0-9_]+$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        birthDate:
+          type: string
+          format: date
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

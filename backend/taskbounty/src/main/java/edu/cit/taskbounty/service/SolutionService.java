@@ -51,7 +51,7 @@ public class SolutionService {
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
-    @Value("${file.max-size:10485760}") // 10MB default
+    @Value("${file.max-size:10485760}")
     private long maxFileSize;
 
     private static final List<String> ALLOWED_FILE_TYPES = List.of(
@@ -77,6 +77,14 @@ public class SolutionService {
         return solutions;
     }
 
+    public Page<Solution> getSolutionsBySubmitterId(String submitterId, int page, int size) {
+        logger.debug("Fetching solutions for submitterId: {}, page: {}, size: {}", submitterId, page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Solution> solutions = solutionRepository.findBySubmitterId(submitterId, pageable);
+        logger.info("Retrieved {} solutions for submitterId: {}", solutions.getTotalElements(), submitterId);
+        return solutions;
+    }
+
     public Optional<Solution> getSolutionByIdAndBountyPostId(String solutionId, String bountyPostId) {
         logger.debug("Fetching solutionId: {} for bountyPostId: {}", solutionId, bountyPostId);
         Optional<Solution> solution = solutionRepository.findByIdAndBountyPostId(solutionId, bountyPostId);
@@ -88,14 +96,10 @@ public class SolutionService {
         return solution;
     }
 
-    /**
-     * Submit a new solution.
-     */
     @Transactional
     public ResponseEntity<Solution> submitSolution(SubmitSolutionDTO submittedSolution) {
         logger.info("Submitting solution for bountyPostId: {}", submittedSolution.getBountyPostId());
 
-        // Validate inputs
         String bountyPostId = submittedSolution.getBountyPostId();
         if (bountyPostId == null || bountyPostId.trim().isEmpty()) {
             logger.error("Bounty post ID is null or empty");
@@ -108,7 +112,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Authenticate user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
         logger.debug("Fetching user: {}", username);
@@ -119,7 +122,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Validate bounty post
         logger.debug("Validating bounty post: {}", bountyPostId);
         ResponseEntity<BountyPost> bountyPostResponse;
         try {
@@ -143,7 +145,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Check for existing approved solution
         logger.debug("Checking for existing approved solution for bountyPostId: {}", bountyPostId);
         Solution approvedSolution = solutionRepository.findByBountyPostIdAndApprovedTrue(bountyPostId);
         if (approvedSolution != null) {
@@ -152,7 +153,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Create upload directory
         Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(uploadPath);
@@ -163,7 +163,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Build and save solution
         try {
             Solution solution = new Solution();
             solution.setBountyPostId(bountyPostId);
@@ -188,7 +187,6 @@ public class SolutionService {
     public ResponseEntity<String> deleteSolution(String solutionId) {
         logger.info("Deleting solution with ID: {}", solutionId);
 
-        // Authenticate user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
         logger.debug("Fetching user: {}", username);
@@ -199,7 +197,6 @@ public class SolutionService {
                     .body("User not authenticated");
         }
 
-        // Find the solution
         Optional<Solution> solutionOpt = solutionRepository.findById(solutionId);
         if (solutionOpt.isEmpty()) {
             logger.warn("Solution not found: {}", solutionId);
@@ -208,21 +205,18 @@ public class SolutionService {
         }
         Solution solution = solutionOpt.get();
 
-        // Check ownership
         if (!solution.getSubmitterId().equals(user.getId())) {
             logger.warn("User {} attempted to delete solution {} owned by another user", user.getId(), solutionId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Cannot delete another user's solution");
         }
 
-        // Check if the solution is approved
         if (solution.isApproved()) {
             logger.warn("Attempted to delete approved solution: {}", solutionId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Cannot delete an approved solution");
         }
 
-        // Delete the solution
         try {
             solutionRepository.deleteById(solutionId);
             logger.info("Solution deleted successfully: {}", solutionId);
@@ -234,14 +228,10 @@ public class SolutionService {
         }
     }
 
-    /**
-     * Update a solution by its ID.
-     */
     @Transactional
     public ResponseEntity<Solution> updateSolution(String solutionId, SubmitSolutionDTO updateDTO) {
         logger.info("Updating solution with ID: {}", solutionId);
 
-        // Authenticate user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
         logger.debug("Fetching user: {}", username);
@@ -252,7 +242,6 @@ public class SolutionService {
                     .body(null);
         }
 
-        // Find the solution
         Optional<Solution> solutionOpt = solutionRepository.findById(solutionId);
         if (solutionOpt.isEmpty()) {
             logger.warn("Solution not found: {}", solutionId);
@@ -261,19 +250,16 @@ public class SolutionService {
         }
         Solution solution = solutionOpt.get();
 
-        // Check ownership
         if (!solution.getSubmitterId().equals(user.getId())) {
             logger.warn("User {} attempted to update solution {} owned by another user", user.getId(), solutionId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(null);
         }
 
-        // Update fields if provided
         if (updateDTO.getDescription() != null && !updateDTO.getDescription().trim().isEmpty()) {
             solution.setContent(updateDTO.getDescription().trim());
         }
 
-        // Save updated solution
         try {
             Solution updatedSolution = solutionRepository.save(solution);
             logger.info("Solution updated successfully: {}", solutionId);
@@ -284,7 +270,4 @@ public class SolutionService {
                     .body(null);
         }
     }
-
-
-
 }
