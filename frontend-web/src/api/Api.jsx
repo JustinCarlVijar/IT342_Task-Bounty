@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://taskbounty-434679566601.us-west2.run.app',
-  withCredentials: true, // Include cookies in requests
+  withCredentials: true,
 });
 
 // Authentication Endpoints
@@ -35,7 +35,7 @@ export const getComments = async (postId, page = 0, size = 10) => {
     const response = await api.get(`/comment/${postId}/bounty_post`, {
       params: { page, size },
     });
-    return response.data.content; 
+    return response.data.content;
   } catch (error) {
     console.error('Error getting comments:', error);
     throw error;
@@ -82,12 +82,27 @@ export const submitSolution = async (solutionData) => {
   }
 };
 
-export const getSolutions = async (bountyPostId) => {
+
+export const getSolutions = async (bountyPostId, page = 0, size = 10) => {
   try {
-    const response = await api.get(`/solutions/${bountyPostId}`);
-    return response.data;
+    const response = await api.get(`/solutions/${bountyPostId}`, {
+      params: { page, size },
+    });
+    return response.data.content || response.data;
   } catch (error) {
     console.error('Error getting solutions:', error);
+    throw error;
+  }
+};
+
+export const getMySolutions = async (page = 0, size = 10) => {
+  try {
+    const response = await api.get('/solutions/my-solutions', {
+      params: { page, size },
+    });
+    return response.data.content || response.data;
+  } catch (error) {
+    console.error('Error getting my solutions:', error);
     throw error;
   }
 };
@@ -111,6 +126,30 @@ export const updateSolution = async (solutionId, solutionData) => {
   }
 };
 
+export const approveSolutionPayout = async (solutionId) => {
+  try {
+    const response = await api.post('/stripe/approve_solution/payout', null, {
+      params: { solutionId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error approving solution payout:', error);
+    throw error;
+  }
+};
+
+export const approveSolutionTransfer = async (solutionId) => {
+  try {
+    const response = await api.post('/stripe/approve_solution/transfer', null, {
+      params: { solutionId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error approving solution transfer:', error);
+    throw error;
+  }
+};
+
 // Bounty Post Endpoints
 export const createBountyPost = async (bountyPostData) => {
   try {
@@ -126,11 +165,11 @@ export const getPublicBountyPosts = async (page = 0, size = 25, sortBy = 'most_u
   try {
     const response = await api.get('/bounty_post', {
       params: {
-          page,
-          size,
-          sortBy,
-          ...(search?.trim() ? { search } : {})
-        },
+        page,
+        size,
+        sortBy,
+        ...(search?.trim() ? { search } : {}),
+      },
     });
     return response.data.content;
   } catch (error) {
@@ -139,13 +178,12 @@ export const getPublicBountyPosts = async (page = 0, size = 25, sortBy = 'most_u
   }
 };
 
-
 export const getDraftBountyPosts = async (page = 0, size = 25) => {
   try {
     const response = await api.get('/bounty_post/draft', {
       params: { page, size },
     });
-    return response.data;
+    return response.data.content;
   } catch (error) {
     console.error('Error getting draft bounty posts:', error);
     throw error;
@@ -171,6 +209,24 @@ export const getBountyPost = async (id) => {
     throw error;
   }
 };
+
+export const getMyBountyPosts = async (page = 0, size = 25, sortBy = 'most_upvoted', search = '') => {
+  try {
+    const response = await api.get('/bounty_post/my_posts', {
+      params: {
+        page,
+        size,
+        sortBy,
+        ...(search?.trim() ? { search } : {}),
+      },
+    });
+    return response.data.content;
+  } catch (error) {
+    console.error('Error getting my bounty posts:', error);
+    throw error;
+  }
+};
+
 
 export const deleteBountyPost = async (id) => {
   try {
@@ -206,7 +262,6 @@ export const registerUser = async (userData) => {
 
 export const verifyEmail = async (code) => {
   try {
-    // Ensure code is numeric to match Long
     const numericCode = parseInt(code, 10);
     if (isNaN(numericCode)) {
       throw new Error('Verification code must be numeric.');
@@ -275,6 +330,9 @@ export const getUserProfile = async (userId) => {
 export const createCheckoutSession = async (bountyPostId) => {
   try {
     const response = await api.get(`/stripe/checkout/${bountyPostId}`);
+    if (!response.data) {
+      throw new Error('Invalid response from checkout API: ' + JSON.stringify(response.data));
+    }
     return response.data;
   } catch (error) {
     console.error('Error creating checkout session:', error);
@@ -290,26 +348,6 @@ export const confirmPayment = async (bountyPostId, sessionId) => {
     return response.data;
   } catch (error) {
     console.error('Error confirming payment:', error);
-    throw error;
-  }
-};
-
-export const approveSolutionPayout = async (solutionId) => {
-  try {
-    const response = await api.post('/stripe/approve_solution/payout', { solutionId });
-    return response.data;
-  } catch (error) {
-    console.error('Error approving solution payout:', error);
-    throw error;
-  }
-};
-
-export const approveSolutionTransfer = async (solutionId) => {
-  try {
-    const response = await api.post('/stripe/approve_solution/transfer', { solutionId });
-    return response.data;
-  } catch (error) {
-    console.error('Error approving solution transfer:', error);
     throw error;
   }
 };
